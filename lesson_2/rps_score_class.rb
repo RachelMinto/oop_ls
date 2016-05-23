@@ -51,7 +51,7 @@ class Player
 
   def initialize
     set_name
-    self.score = Score.new
+    self.score = Score.new(name)
   end
 end
 
@@ -90,22 +90,18 @@ class Computer < Player
 end
 
 class Score
-  def initialize
-    @score = 0
+  def initialize(name)
+    @value = 0
+    @name = name
   end
-
+  
   def display
-    @score_string = <<-MSG
-    #{human.name} has #{human.score} points and #{computer.name} has 
-    #{computer.score} points."
-    "------------------------------"
-    MSG
+    "#{@value}"
   end
-
-  def to_s
-    puts @score_string
+  
+  def update
+    @value += 1
   end
-
 end
 
 class RPSGame
@@ -138,6 +134,22 @@ class RPSGame
       puts "It's a tie."
     end
   end
+  
+  def update_score
+    if human.move > computer.move
+      human.score.update
+    elsif human.move < computer.move
+      computer.score.update
+    end
+  end
+  
+  def display_score
+    puts "#{human.name} has #{human.score.display} points and #{computer.name} has #{computer.score.display}."
+  end
+  
+  def winner?
+    human.score == 10 || computer.score == 10 # NOT WORKING!!
+  end
 
   def play_again?
     answer = nil
@@ -157,11 +169,15 @@ class RPSGame
     display_welcome_message
 
     loop do
-      human.choose
-      computer.choose
-      display_moves
-      display_winner
-      Score.display
+      loop do
+        human.choose
+        computer.choose
+        display_moves
+        update_score
+        display_winner
+        display_score
+        break if winner?
+      end
       break unless play_again?
     end
     display_goodbye_message
