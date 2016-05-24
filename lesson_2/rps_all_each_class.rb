@@ -1,15 +1,6 @@
 
 # frozen_string_literal:true
 
-# CRC Cards: Class, Superclass, Collaborators, Responsibilities
-# Player - Nil - Nil - Has a Move, Has a Name
-# Human - Player - Move, Score - User Choose Move, User Choose Name @Init
-# Computer - Player - Move, Score - AI Choose Move, AI Choose Name @Init
-# Move - Nil - Nil - Has a value, Compare Moves, Return string representation
-# Score - Nil - Nil - 
-
-MATCH_WINNING_SCORE = 4.freeze
-
 class Move
   VALUES = ['rock', 'paper', 'scissors'].freeze
 
@@ -46,12 +37,23 @@ class Move
   end
 end
 
+class Rock
+
+end
+
+class Paper
+
+end
+
+class Scissors
+
+end
+
 class Player
-  attr_accessor :move, :name, :score
+  attr_accessor :move, :name
 
   def initialize
     set_name
-    self.score = Score.new(name)
   end
 end
 
@@ -89,25 +91,6 @@ class Computer < Player
   end
 end
 
-class Score
-  def initialize(name)
-    @value = 0
-    @name = name
-  end
-  
-  def update
-    @value += 1
-  end
-
-  def to_i
-    @value
-  end
-
-  def reset
-    @value = 0
-  end
-end
-
 class RPSGame
   attr_accessor :human, :computer
 
@@ -137,41 +120,6 @@ class RPSGame
     else
       puts "It's a tie."
     end
-    puts "-------------------"
-  end
-  
-  def update_score
-    if human.move > computer.move
-      human.score.update
-    elsif human.move < computer.move
-      computer.score.update
-    end
-  end
-  
-  def display_score
-    puts <<-MSG
-#{human.name} has #{human.score.to_i} points and \
-#{computer.name} has #{computer.score.to_i} points.
-    MSG
-  end
-  
-  def winner?
-    human.score.to_i == MATCH_WINNING_SCORE || 
-    computer.score.to_i == MATCH_WINNING_SCORE
-  end
-
-  def display_match_winner
-    if human.score.to_i == MATCH_WINNING_SCORE
-      puts "#{human.name} won best out of #{MATCH_WINNING_SCORE}!"
-    elsif computer.score.to_i == MATCH_WINNING_SCORE
-      puts "#{computer.name} won best out of #{MATCH_WINNING_SCORE}!"
-    end
-    puts "-------------------"
-  end
-
-  def reset_scores
-    human.score.reset
-    computer.score.reset
   end
 
   def play_again?
@@ -192,17 +140,10 @@ class RPSGame
     display_welcome_message
 
     loop do
-      loop do
-        human.choose
-        computer.choose
-        display_moves
-        update_score
-        display_winner
-        display_score
-        break if winner?
-      end
-      display_match_winner
-      reset_scores
+      human.choose
+      computer.choose
+      display_moves
+      display_winner
       break unless play_again?
     end
     display_goodbye_message
