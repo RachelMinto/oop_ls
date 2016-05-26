@@ -1,94 +1,71 @@
-MOVES = ['rock', 'paper', 'scissors']
 
-class Move 
+# frozen_string_literal:true
+
+class Move
+  VALUES = ['rock', 'paper', 'scissors'].freeze
+
+  def initialize(value)
+    @value = value
+  end
+
+  def scissors?
+    @value == 'scissors'
+  end
+
+  def rock?
+    @value == 'rock'
+  end
+
+  def paper?
+    @value == 'paper'
+  end
+
+  def >(other_move)
+    (rock? && other_move.scissors?) ||
+      (paper? && other_move.rock?) ||
+      (scissors? && other_move.paper?)
+  end
+
+  def <(other_move)
+    (rock? && other_move.paper?) ||
+      (paper? && other_move.scissors?) ||
+      (scissors? && other_move.rock?)
+  end
+
   def to_s
     @value
   end
 end
 
-class Rock < Move
-  def initialize(value)
-    @value = value
-  end
-
-  def >(other_move)
-    other_move == 'scissors'
-  end
-
-  def <(other_move)
-    other_move == 'paper'
-  end
-end
-
-class Paper < Move
-  def initialize(value)
-    @value = value
-  end
-
-  def >(other_move)
-    other_move == 'rock'
-  end
-
-  def <(other_move)
-    other_move == 'scissors'
-  end
-end
-
-class Scissors < Move
-  def initialize(value)
-    @value = value
-  end
-
-  def >(other_move)
-    other_move == 'paper'
-  end
-
-  def <(other_move)
-    other_move == 'rock'
-  end
-end
-
 class Player
-  attr_accessor :name, :move
+  attr_accessor :move, :name
 
   def initialize
     set_name
   end
-
-  def choice_to_move_object(choice)
-    case
-    when choice == "rock"
-      Rock.new(choice)
-    when choice == "paper"
-      Paper.new(choice)
-    when choice == "scissors"
-      Scissors.new(choice)
-    end
-  end
 end
 
 class Human < Player
-
   def set_name
     n = ''
     loop do
-      puts "Please enter your name."
+      puts "What's your name?"
       n = gets.chomp
       break unless n.empty?
-      "I'm sorry, you must enter a value."
+      puts "Sorry, must enter a value."
     end
     self.name = n
   end
 
   def choose
-    choice = ''
+    choice = nil
     loop do
       puts "Please choose rock, paper, or scissors."
       choice = gets.chomp
-      break if MOVES.include?(choice)
-      puts "I'm sorry, that's not a valid choice."
+      break if Move::VALUES.include? choice
+      puts "Sorry, invalid choice."
     end
-      self.move = choice_to_move_object(choice)
+    self.move = Move.new(choice)
   end
 end
 
@@ -98,8 +75,7 @@ class Computer < Player
   end
 
   def choose
-    choice = MOVES.sample
-    self.move = choice_to_move_object(choice)
+    self.move = Move.new(Move::VALUES.sample)
   end
 end
 
@@ -112,17 +88,22 @@ class RPSGame
   end
 
   def display_welcome_message
-    puts "Hello #{@human.name}. Welcome to Rock, Paper, Scissors!"
+    puts "Welcome to Rock, Paper, Scissors!"
+  end
+
+  def display_goodbye_message
+    puts "Thanks for playing Rock, Paper, Scissors. Good bye!"
   end
 
   def display_moves
-    puts "#{human.name} chose #{human.move} and #{computer.name} chose #{computer.move}."
+    puts "#{human.name} chose #{human.move}."
+    puts "#{computer.name} chose #{computer.move}."
   end
 
   def display_winner
-    if human.move > computer.move.to_s
+    if human.move > computer.move
       puts "#{human.name} won!"
-    elsif human.move < computer.move.to_s
+    elsif human.move < computer.move
       puts "#{computer.name} won!"
     else
       puts "It's a tie."
@@ -141,10 +122,6 @@ class RPSGame
 
     return false if answer.downcase == 'n'
     return true if answer.downcase == 'y'
-  end
-
-  def display_goodbye_message
-    puts "Thanks for playing Rock, Paper, Scissors. Good bye!"
   end
 
   def play
