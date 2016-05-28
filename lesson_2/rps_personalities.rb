@@ -1,9 +1,8 @@
-require 'pry'
-MATCH_WINNING_SCORE = 10.freeze
 
-# frozen_string_literal:true
+MATCH_WINNING_SCORE = 10
 
 class Move
+  attr_reader :move_history
   VALUES = ['rock', 'paper', 'scissors'].freeze
 
   def initialize(value)
@@ -49,10 +48,10 @@ class Player
 end
 
 class Human < Player
-  attr_accessor :history_of_moves
+  attr_accessor :move_history
 
   def initialize
-    @history_of_moves = []
+    @move_history = []
     super
   end
 
@@ -78,12 +77,8 @@ class Human < Player
     self.move = Move.new(choice)
   end
 
-  def history_of_moves
-    @history_of_moves
-  end
-
   def update_history
-    @history_of_moves.push(self.move)
+    @move_history.push(self.move.to_s)
   end
 end
 
@@ -93,13 +88,59 @@ class Computer < Player
   end
 
   def choose(human)
+    result = case self.name 
+      when 'R2D2' then r2d2_choose(human)
+      when 'Hal' then hal_choose
+      when 'Psych. Prof' then psych_prof_choose(human)
+      when 'Sonny' then sonny_choose(human)
+      when 'Number 5' then num5_choose
+    end
+    result
+  end
+
+  def r2d2_choose(human)
+    r2_choices = ['rock', 'paper', 'paper']
+    if human.move_history.length > 0
+      if human.move_history.count('scissors')/human.move_history.length > 0.50
+        self.move = Move.new('rock')
+      elsif human.move_history.count('rock')/human.move_history.length > 0.50
+        self.move = Move.new('paper')
+      elsif human.move_history.count('paper')/human.move_history.length > 0.50
+        self.move = Move.new('scissors')
+      end
+    else
+      self.move = Move.new(r2_choices.sample)
+    end
+  end
+
+  def hal_choose
+    hal_choices = ['paper', 'paper', 'scissors']
+    self.move = Move.new(hal_choices.sample)
+  end
+
+  def psych_prof_choose(human)
     if self.move && (human.move > self.move)
-      self.move = Move.new('scissors')
+      if human.move.to_s == 'rock'
+        self.move = Move.new('paper')
+      elsif human.move.to_s == 'paper'
+        self.move = Move.new('scissors')        
+      else human.move.to_s == 'scissors'
+        self.move = Move.new('rock')
+      end
     elsif self.move && (human.move < self.move)
       self.move = Move.new(human.move.to_s)
     else
       self.move = Move.new(Move::VALUES.sample)
     end
+  end
+
+  def sonny_choose(human)
+    self.move = human.move ? Move.new(human.move.to_s) : Move.new('rock')
+  end
+
+  def num5_choose
+    num5_choices = ['rock', 'rock', 'rock', 'paper', 'scissors']
+    self.move = Move.new(num5_choices.sample)
   end
 end
 
