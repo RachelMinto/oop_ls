@@ -1,9 +1,74 @@
-require 'pry'
+
 # frozen_string_literal: true
 
 module Display
   def clear_screen
     system('clear') || system('cls')
+  end
+
+  def line_break
+    puts "------------------------------"
+  end
+
+  def validate_response(question)
+    answer = ''
+    loop do
+      puts question
+      answer = gets.chomp
+      break if %w(yes no y n).include? answer.downcase
+      puts "Sorry, must be yes or no."
+    end
+    answer
+  end
+
+  def view_move_history?
+    question = "Would you like to view your move history each round?"
+    answer = validate_response(question)
+    answer.downcase.start_with?('y') ? true : false
+  end
+
+  def display_move_history
+    puts "#{human.name} move history:" + human.move_history.inspect
+    puts "#{computer.name} move history:" + computer.move_history.inspect
+    line_break
+  end
+
+  def display_welcome_message
+    clear_screen
+    puts "Welcome to Rock, Paper, Scissors!"
+    puts "A match will be best out of #{RPSGame::MATCH_WINNING_SCORE} rounds."
+    puts "Please press enter to begin."
+    gets
+    clear_screen
+  end
+
+  def display_goodbye_message
+    puts "Thanks for playing Rock, Paper, Scissors. Good bye!"
+  end
+
+  def display_moves
+    puts "#{human.name} chose #{human.move}."
+    puts "#{computer.name} chose #{computer.move}."
+  end
+
+  def display_scores
+    puts <<~MSG
+    Score: #{human.name} has #{human.score} point(s)
+           #{computer.name} has #{computer.score} point(s).
+    MSG
+    line_break
+  end
+
+  def display_winner
+    human_move = human.move
+    if human_move > computer.move
+      puts "#{human.name} won!"
+    elsif human_move < computer.move
+      puts "#{computer.name} won!"
+    else
+      puts "It's a tie."
+    end
+    line_break
   end
 end
 
@@ -44,20 +109,22 @@ class Move
 end
 
 class Player
-  attr_accessor :move, :name, :score
+  attr_accessor :move, :name, :score, :move_history
 
   def initialize
     @score = 0
+    @move_history = []
+  end
+
+  def update_history
+    move_history.push(move.to_s)
   end
 end
 
 class Human < Player
-  attr_accessor :move_history
-
   def initialize
     super
     set_name
-    @move_history = []
   end
 
   def set_name
@@ -80,10 +147,6 @@ class Human < Player
       puts "Sorry, invalid choice."
     end
     self.move = Move.new(choice)
-  end
-
-  def update_history
-    @move_history.push(move.to_s)
   end
 end
 
@@ -188,11 +251,12 @@ class RPSGame
   include Display
   MATCH_WINNING_SCORE = 3
 
-  attr_accessor :human, :computer
+  attr_accessor :human, :computer, :view_history
 
   def initialize
     @human = Human.new
     @computer = new_opponent
+    @view_history = view_move_history?
   end
 
   def new_opponent
@@ -227,23 +291,6 @@ class RPSGame
                 end
   end
 
-  def line_break
-    puts "------------------------------"
-  end
-
-  def display_welcome_message
-    clear_screen
-    puts "Welcome to Rock, Paper, Scissors!"
-    puts "This match will be best out of #{MATCH_WINNING_SCORE} rounds."
-    puts "Please press enter to begin."
-    gets
-    clear_screen
-  end
-
-  def display_goodbye_message
-    puts "Thanks for playing Rock, Paper, Scissors. Good bye!"
-  end
-
   def play_round
     clear_screen
     make_moves
@@ -251,29 +298,14 @@ class RPSGame
     display_winner
     update_scores
     display_scores
+    display_move_history if view_history == true
   end
 
   def make_moves
     computer.choose(human)
     human.choose
+    computer.update_history
     human.update_history
-  end
-
-  def display_moves
-    puts "#{human.name} chose #{human.move}."
-    puts "#{computer.name} chose #{computer.move}."
-  end
-
-  def display_winner
-    human_move = human.move
-    if human_move > computer.move
-      puts "#{human.name} won!"
-    elsif human_move < computer.move
-      puts "#{computer.name} won!"
-    else
-      puts "It's a tie."
-    end
-    line_break
   end
 
   def update_scores
@@ -288,14 +320,6 @@ class RPSGame
     human.score = 0
     computer.score = 0
     human.move_history = []
-  end
-
-  def display_scores
-    puts <<~MSG
-    Score: #{human.name} has #{human.score} point(s)
-           #{computer.name} has #{computer.score} point(s).
-    MSG
-    line_break
   end
 
   def start_next_round
