@@ -1,7 +1,11 @@
 
 # frozen_string_literal: true
 
-MATCH_WINNING_SCORE = 5
+module Display
+  def clear_screen
+    system('clear') || system('cls')
+  end
+end
 
 class Move
   VALUES = ['rock', 'paper', 'scissors'].freeze
@@ -51,9 +55,11 @@ end
 class Human < Player
   attr_accessor :move_history
 
+  include Display
+
   def initialize
-    @move_history = []
     super
+    @move_history = []
   end
 
   def set_name
@@ -67,7 +73,7 @@ class Human < Player
       puts "Sorry, must enter a value."
     end
     self.name = n
-    system('clear') || system('cls')
+    clear_screen
   end
 
   def choose
@@ -144,11 +150,12 @@ end
 
 class Computer < Player
   include Personalities
+  include Display
 
   def set_name
     puts <<~MSG
-    Which opponent would you like to play?
-    Please enter the corresponding number.
+      Which opponent would you like to play?
+      Please enter the corresponding number.
     MSG
     opponents = ['R2D2', 'Hal', 'Psych. Prof', 'Sonny', 'Number 5']
     opponents.each_with_index { |name, index| puts "#{index + 1}. #{name}" }
@@ -175,6 +182,9 @@ class Computer < Player
 end
 
 class RPSGame
+  include Display
+  MATCH_WINNING_SCORE = 5
+
   attr_accessor :human, :computer
 
   def initialize
@@ -187,12 +197,12 @@ class RPSGame
   end
 
   def display_welcome_message
-    system('clear') || system('cls')
+    clear_screen
     puts "Welcome to Rock, Paper, Scissors!"
     puts "This match will be best out of #{MATCH_WINNING_SCORE} rounds."
     puts "Please press enter to begin."
     gets
-    system('clear') || system('cls')
+    clear_screen
   end
 
   def display_goodbye_message
@@ -218,18 +228,17 @@ class RPSGame
     puts "#{computer.name} chose #{computer.move}."
   end
 
-  # rubocop: disable Metrics/AbcSize
   def display_winner
-    if human.move > computer.move
+    human_move = human.move
+    if human_move > computer.move
       puts "#{human.name} won!"
-    elsif human.move < computer.move
+    elsif human_move < computer.move
       puts "#{computer.name} won!"
     else
       puts "It's a tie."
     end
     line_break
   end
-  # rubocop: enable Metrics/AbcSize
 
   def update_scores
     if human.move > computer.move
@@ -256,7 +265,7 @@ class RPSGame
   def start_next_round
     puts "Please press enter to start the next round."
     gets
-    system('clear') || system('cls')
+    clear_screen
   end
 
   def match_winner?
@@ -268,7 +277,7 @@ class RPSGame
     loop do
       puts "Would you like to play a different opponent? (y/n)"
       answer = gets.chomp
-      break if ['y', 'yes', 'n', 'no'].include? answer.downcase
+      break if %w(yes no y n).include? answer.downcase
       puts "Sorry, must be yes or no."
     end
     computer.set_name if answer.downcase.start_with? 'y'
@@ -289,7 +298,7 @@ class RPSGame
     loop do
       puts "Would you like to play again? (y/n)"
       answer = gets.chomp
-      break if ['y', 'yes', 'n', 'no'].include? answer.downcase
+      break if %w(yes no y n).include? answer.downcase
       puts "Sorry, must be yes or no."
     end
 
@@ -306,11 +315,13 @@ class RPSGame
         break if match_winner?
         start_next_round
       end
+
       display_match_winner
       reset_info
       break unless play_again?
       change_opponent
     end
+
     display_goodbye_message
   end
 end
