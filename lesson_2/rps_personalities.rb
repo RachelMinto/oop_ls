@@ -22,7 +22,7 @@ module Display
   end
 
   def view_move_history?
-    question = "Would you like to view your move history each round?"
+    question = "Would you like to view your move history each round? (y/n)"
     answer = validate_response(question)
     answer.downcase.start_with?('y') ? true : false
   end
@@ -35,26 +35,26 @@ module Display
 
   def display_welcome_message
     clear_screen
-    puts "Welcome to Rock, Paper, Scissors!"
-    puts "A match will be best out of #{RPSGame::MATCH_WINNING_SCORE} rounds."
-    puts "Please press enter to begin."
+    puts <<~MSG
+      Welcome to Rock, Paper, Scissors!
+      A match will be best out of #{RPSGame::MATCH_WINNING_SCORE} rounds.
+      Please press enter to begin.
+    MSG
     gets
     clear_screen
   end
 
-  def display_goodbye_message
-    puts "Thanks for playing Rock, Paper, Scissors. Good bye!"
-  end
-
   def display_moves
-    puts "#{human.name} chose #{human.move}."
-    puts "#{computer.name} chose #{computer.move}."
+    puts <<~MSG
+      #{human.name} chose #{human.move}.
+      #{computer.name} chose #{computer.move}.
+    MSG
   end
 
   def display_scores
     puts <<~MSG
-    Score: #{human.name} has #{human.score} point(s)
-           #{computer.name} has #{computer.score} point(s).
+      Score: #{human.name} has #{human.score} point(s)
+             #{computer.name} has #{computer.score} point(s).
     MSG
     line_break
   end
@@ -69,6 +69,19 @@ module Display
       puts "It's a tie."
     end
     line_break
+  end
+
+  def display_match_winner
+    line_break
+    if human.score == RPSGame::MATCH_WINNING_SCORE
+      puts "#{human.name} won the match!"
+    else
+      puts "#{computer.name} won the match!"
+    end
+  end
+
+  def display_goodbye_message
+    puts "Thanks for playing Rock, Paper, Scissors. Good bye!"
   end
 end
 
@@ -151,8 +164,6 @@ class Human < Player
 end
 
 class Computer < Player
-  include Display
-
   def initialize
     super
   end
@@ -249,7 +260,7 @@ end
 
 class RPSGame
   include Display
-  MATCH_WINNING_SCORE = 3
+  MATCH_WINNING_SCORE = 5
 
   attr_accessor :human, :computer, :view_history
 
@@ -306,6 +317,7 @@ class RPSGame
     human.choose
     computer.update_history
     human.update_history
+    clear_screen
   end
 
   def update_scores
@@ -320,6 +332,7 @@ class RPSGame
     human.score = 0
     computer.score = 0
     human.move_history = []
+    computer.move_history = []
   end
 
   def start_next_round
@@ -333,37 +346,15 @@ class RPSGame
   end
 
   def change_opponent
-    answer = ''
-    loop do
-      puts "Would you like to play a different opponent? (y/n)"
-      answer = gets.chomp
-      break if %w(yes no y n).include? answer.downcase
-      puts "Sorry, must be yes or no."
-    end
+    question = "Would you like to play a different opponent? (y/n)"
+    answer = validate_response(question)
     @computer = new_opponent if answer.downcase.start_with? 'y'
   end
 
-  def display_match_winner
-    line_break
-    if human.score == MATCH_WINNING_SCORE
-      puts "#{human.name} won the match!"
-    else
-      puts "#{computer.name} won the match!"
-    end
-  end
-
   def play_again?
-    answer = nil
-
-    loop do
-      puts "Would you like to play again? (y/n)"
-      answer = gets.chomp
-      break if %w(yes no y n).include? answer.downcase
-      puts "Sorry, must be yes or no."
-    end
-
-    return false if answer.downcase.start_with? 'n'
-    return true if answer.downcase.start_with? 'y'
+    question = "Would you like to play again? (y/n)"
+    answer = validate_response(question)
+    answer.downcase.start_with?('y') ? true : false
   end
 
   def play
