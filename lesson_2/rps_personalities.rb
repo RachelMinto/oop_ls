@@ -1,4 +1,4 @@
-
+require 'pry'
 # frozen_string_literal: true
 
 module Display
@@ -47,7 +47,6 @@ class Player
   attr_accessor :move, :name, :score
 
   def initialize
-    set_name
     @score = 0
   end
 end
@@ -55,10 +54,9 @@ end
 class Human < Player
   attr_accessor :move_history
 
-  include Display
-
   def initialize
     super
+    set_name
     @move_history = []
   end
 
@@ -67,13 +65,10 @@ class Human < Player
     loop do
       puts "What's your name?"
       n = gets.chomp
-      # rubocop: disable Style/ZeroLengthPredicate
-      break unless n.to_s.strip.length == 0
-      # rubocop: enable Style/ZeroLengthPredicate
+      break unless n.to_s.strip.empty?
       puts "Sorry, must enter a value."
     end
     self.name = n
-    clear_screen
   end
 
   def choose
@@ -92,8 +87,21 @@ class Human < Player
   end
 end
 
-module Personalities
-  def r2d2_choose(human)
+class Computer < Player
+  include Display
+
+  def initialize
+    super
+  end
+end
+
+class R2D2 < Computer
+  def initialize
+    super
+    @name = "R2D2"
+  end
+
+  def choose(human)
     r2_choices = ['rock', 'paper', 'paper']
     self.move = if !human.move_history.empty? &&
                    !!preferred_move_beater(human.move_history)
@@ -112,13 +120,27 @@ module Personalities
       'scissors'
     end
   end
+end
 
-  def hal_choose
+class Hal < Computer
+  def initialize
+    super
+    @name = "Hal"
+  end
+
+  def choose(__)
     hal_choices = ['paper', 'paper', 'scissors']
     self.move = Move.new(hal_choices.sample)
   end
+end
 
-  def psych_prof_choose(human)
+class PsychProf < Computer
+  def initialize
+    super
+    @name = "Psych. Prof"
+  end
+
+  def choose(human)
     self.move = if move && (human.move > move)
                   Move.new(previous_move_beater(human.move.to_s))
                 elsif move && (human.move < move)
@@ -137,22 +159,48 @@ module Personalities
       'rock'
     end
   end
+end
 
-  def sonny_choose(human)
-    self.move = human.move ? Move.new(human.move.to_s) : Move.new('rock')
+class Sonny < Computer
+  def initialize
+    super
+    @name = "Sonny"
   end
 
-  def num5_choose
+  def choose(human)
+    self.move = human.move ? Move.new(human.move.to_s) : Move.new('rock')
+  end
+end
+
+class Num5 < Computer
+  def initialize
+    super
+    @name = "Number 5"
+  end
+
+  def choose(__)
     num5_choices = ['rock', 'rock', 'rock', 'paper', 'scissors']
     self.move = Move.new(num5_choices.sample)
   end
 end
 
-class Computer < Player
-  include Personalities
+class RPSGame
   include Display
+  MATCH_WINNING_SCORE = 3
 
-  def set_name
+  attr_accessor :human, :computer
+
+  def initialize
+    @human = Human.new
+    @computer = new_opponent
+  end
+
+  def new_opponent
+    opponent = choose_opponent
+    instantiate_opponent(opponent)
+  end
+
+  def choose_opponent
     puts <<~MSG
       Which opponent would you like to play?
       Please enter the corresponding number.
@@ -166,30 +214,17 @@ class Computer < Player
       break if (0..(opponents.length - 1)).cover? num_opponent
       puts "Please enter a number between 1 and #{opponents.length}."
     end
-    self.name = opponents[num_opponent]
+    opponents[num_opponent]
   end
 
-  def choose(human)
-    result = case name
-             when 'R2D2' then r2d2_choose(human)
-             when 'Hal' then hal_choose
-             when 'Psych. Prof' then psych_prof_choose(human)
-             when 'Sonny' then sonny_choose(human)
-             when 'Number 5' then num5_choose
-             end
-    result
-  end
-end
-
-class RPSGame
-  include Display
-  MATCH_WINNING_SCORE = 5
-
-  attr_accessor :human, :computer
-
-  def initialize
-    @human = Human.new
-    @computer = Computer.new
+  def instantiate_opponent(name)
+    @computer = case name
+                when "R2D2" then R2D2.new
+                when "Hal" then Hal.new
+                when 'Psych. Prof' then PsychProf.new
+                when 'Sonny' then Sonny.new
+                when 'Number 5' then Num5.new
+                end
   end
 
   def line_break
@@ -210,6 +245,7 @@ class RPSGame
   end
 
   def play_round
+    clear_screen
     make_moves
     display_moves
     display_winner
@@ -280,7 +316,7 @@ class RPSGame
       break if %w(yes no y n).include? answer.downcase
       puts "Sorry, must be yes or no."
     end
-    computer.set_name if answer.downcase.start_with? 'y'
+    @computer = new_opponent if answer.downcase.start_with? 'y'
   end
 
   def display_match_winner
