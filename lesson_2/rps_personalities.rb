@@ -1,8 +1,9 @@
 
-MATCH_WINNING_SCORE = 10
+# frozen_string_literal: true
+
+MATCH_WINNING_SCORE = 5
 
 class Move
-  attr_reader :move_history
   VALUES = ['rock', 'paper', 'scissors'].freeze
 
   def initialize(value)
@@ -60,17 +61,20 @@ class Human < Player
     loop do
       puts "What's your name?"
       n = gets.chomp
-      break unless n.empty?
+      # rubocop: disable Style/ZeroLengthPredicate
+      break unless n.to_s.strip.length == 0
+      # rubocop: enable Style/ZeroLengthPredicate
       puts "Sorry, must enter a value."
     end
     self.name = n
+    system('clear') || system('cls')
   end
 
   def choose
     choice = nil
     loop do
       puts "Please choose rock, paper, or scissors."
-      choice = gets.chomp
+      choice = gets.chomp.downcase
       break if Move::VALUES.include? choice
       puts "Sorry, invalid choice."
     end
@@ -78,38 +82,28 @@ class Human < Player
   end
 
   def update_history
-    @move_history.push(self.move.to_s)
+    @move_history.push(move.to_s)
   end
 end
 
-class Computer < Player
-  def set_name
-    self.name = ['R2D2', 'Hal', 'Psych. Prof', 'Sonny', 'Number 5'].sample
-  end
-
-  def choose(human)
-    result = case self.name 
-      when 'R2D2' then r2d2_choose(human)
-      when 'Hal' then hal_choose
-      when 'Psych. Prof' then psych_prof_choose(human)
-      when 'Sonny' then sonny_choose(human)
-      when 'Number 5' then num5_choose
-    end
-    result
-  end
-
+module Personalities
   def r2d2_choose(human)
     r2_choices = ['rock', 'paper', 'paper']
-    if human.move_history.length > 0
-      if human.move_history.count('scissors')/human.move_history.length > 0.50
-        self.move = Move.new('rock')
-      elsif human.move_history.count('rock')/human.move_history.length > 0.50
-        self.move = Move.new('paper')
-      elsif human.move_history.count('paper')/human.move_history.length > 0.50
-        self.move = Move.new('scissors')
-      end
-    else
-      self.move = Move.new(r2_choices.sample)
+    self.move = if !human.move_history.empty? &&
+                   !!preferred_move_beater(human.move_history)
+                  Move.new(preferred_move_beater(human.move_history))
+                else
+                  Move.new(r2_choices.sample)
+                end
+  end
+
+  def preferred_move_beater(move_history)
+    if move_history.count('scissors') / move_history.length.to_f > 0.50
+      'rock'
+    elsif move_history.count('rock') / move_history.length.to_f > 0.50
+      'paper'
+    elsif move_history.count('paper') / move_history.length.to_f > 0.50
+      'scissors'
     end
   end
 
@@ -119,18 +113,22 @@ class Computer < Player
   end
 
   def psych_prof_choose(human)
-    if self.move && (human.move > self.move)
-      if human.move.to_s == 'rock'
-        self.move = Move.new('paper')
-      elsif human.move.to_s == 'paper'
-        self.move = Move.new('scissors')        
-      else human.move.to_s == 'scissors'
-        self.move = Move.new('rock')
-      end
-    elsif self.move && (human.move < self.move)
-      self.move = Move.new(human.move.to_s)
-    else
-      self.move = Move.new(Move::VALUES.sample)
+    self.move = if move && (human.move > move)
+                  Move.new(previous_move_beater(human.move.to_s))
+                elsif move && (human.move < move)
+                  Move.new(human.move.to_s)
+                else
+                  Move.new(Move::VALUES.sample)
+                end
+  end
+
+  def previous_move_beater(prev_move)
+    if prev_move == 'rock'
+      'paper'
+    elsif prev_move == 'paper'
+      'scissors'
+    elsif prev_move == 'scissors'
+      'rock'
     end
   end
 
@@ -144,6 +142,38 @@ class Computer < Player
   end
 end
 
+class Computer < Player
+  include Personalities
+
+  def set_name
+    puts <<~MSG
+    Which opponent would you like to play?
+    Please enter the corresponding number.
+    MSG
+    opponents = ['R2D2', 'Hal', 'Psych. Prof', 'Sonny', 'Number 5']
+    opponents.each_with_index { |name, index| puts "#{index + 1}. #{name}" }
+
+    num_opponent = ''
+    loop do
+      num_opponent = gets.chomp.to_i - 1
+      break if (0..(opponents.length - 1)).cover? num_opponent
+      puts "Please enter a number between 1 and #{opponents.length}."
+    end
+    self.name = opponents[num_opponent]
+  end
+
+  def choose(human)
+    result = case name
+             when 'R2D2' then r2d2_choose(human)
+             when 'Hal' then hal_choose
+             when 'Psych. Prof' then psych_prof_choose(human)
+             when 'Sonny' then sonny_choose(human)
+             when 'Number 5' then num5_choose
+             end
+    result
+  end
+end
+
 class RPSGame
   attr_accessor :human, :computer
 
@@ -152,12 +182,35 @@ class RPSGame
     @computer = Computer.new
   end
 
+  def line_break
+    puts "------------------------------"
+  end
+
   def display_welcome_message
+    system('clear') || system('cls')
     puts "Welcome to Rock, Paper, Scissors!"
+    puts "This match will be best out of #{MATCH_WINNING_SCORE} rounds."
+    puts "Please press enter to begin."
+    gets
+    system('clear') || system('cls')
   end
 
   def display_goodbye_message
     puts "Thanks for playing Rock, Paper, Scissors. Good bye!"
+  end
+
+  def play_round
+    make_moves
+    display_moves
+    display_winner
+    update_scores
+    display_scores
+  end
+
+  def make_moves
+    computer.choose(human)
+    human.choose
+    human.update_history
   end
 
   def display_moves
@@ -165,6 +218,7 @@ class RPSGame
     puts "#{computer.name} chose #{computer.move}."
   end
 
+  # rubocop: disable Metrics/AbcSize
   def display_winner
     if human.move > computer.move
       puts "#{human.name} won!"
@@ -173,7 +227,9 @@ class RPSGame
     else
       puts "It's a tie."
     end
+    line_break
   end
+  # rubocop: enable Metrics/AbcSize
 
   def update_scores
     if human.move > computer.move
@@ -183,23 +239,43 @@ class RPSGame
     end
   end
 
-  def reset_scores
+  def reset_info
     human.score = 0
     computer.score = 0
+    human.move_history = []
   end
 
   def display_scores
-    puts "#{human.name} has #{human.score} points and #{computer.name} has 
-#{computer.score} points."
-    puts"------------------------------"
+    puts <<~MSG
+    Score: #{human.name} has #{human.score} point(s)
+           #{computer.name} has #{computer.score} point(s).
+    MSG
+    line_break
+  end
+
+  def start_next_round
+    puts "Please press enter to start the next round."
+    gets
+    system('clear') || system('cls')
   end
 
   def match_winner?
     human.score == MATCH_WINNING_SCORE || computer.score == MATCH_WINNING_SCORE
   end
 
+  def change_opponent
+    answer = ''
+    loop do
+      puts "Would you like to play a different opponent? (y/n)"
+      answer = gets.chomp
+      break if ['y', 'yes', 'n', 'no'].include? answer.downcase
+      puts "Sorry, must be yes or no."
+    end
+    computer.set_name if answer.downcase.start_with? 'y'
+  end
+
   def display_match_winner
-    puts "------------------------------"
+    line_break
     if human.score == MATCH_WINNING_SCORE
       puts "#{human.name} won the match!"
     else
@@ -213,12 +289,12 @@ class RPSGame
     loop do
       puts "Would you like to play again? (y/n)"
       answer = gets.chomp
-      break if ['y', 'n'].include? answer.downcase
-      puts "Sorry, must be y or n."
+      break if ['y', 'yes', 'n', 'no'].include? answer.downcase
+      puts "Sorry, must be yes or no."
     end
 
-    return false if answer.downcase == 'n'
-    return true if answer.downcase == 'y'
+    return false if answer.downcase.start_with? 'n'
+    return true if answer.downcase.start_with? 'y'
   end
 
   def play
@@ -226,18 +302,14 @@ class RPSGame
 
     loop do
       loop do
-        computer.choose(human)
-        human.choose
-        human.update_history
-        display_moves
-        display_winner
-        update_scores
-        display_scores
+        play_round
         break if match_winner?
+        start_next_round
       end
       display_match_winner
-      reset_scores
+      reset_info
       break unless play_again?
+      change_opponent
     end
     display_goodbye_message
   end
