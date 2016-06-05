@@ -57,11 +57,11 @@ class Board
   end
   # rubocop:enable Metrics/AbcSize
 
-  def immediate_threat
+  def immediate_threat(marker)
     WINNING_LINES.each do |line|
       squares = @squares.values_at(*line)
-      if at_risk_square?(squares)
-        return @squares.key(squares.select(&:unmarked?)[0]) 
+      if at_risk_square?(squares, marker)
+        return @squares.key(squares.select(&:unmarked?)[0])
       end
     end
     nil
@@ -69,9 +69,9 @@ class Board
 
   private
 
-  def at_risk_square?(squares)
-    markers = squares.select(&:marked?).collect(&:marker)
-    return false if markers.size != 2 || markers[0] != markers[1]
+  def at_risk_square?(squares, threat_marker)
+    markers = squares.select(&:marked_with?).collect(&:marker)
+    p markers
     true
   end
 
@@ -95,6 +95,10 @@ class Square
     @marker
   end
 
+  def marked_with?
+    marker == "X"
+  end
+
   def unmarked?
     marker == INITIAL_MARKER
   end
@@ -116,11 +120,7 @@ end
 
 class Computer < Player
   def initialize(marker)
-    super
-  end
-
-  def choose_move
-
+    super(marker)
   end
 end
 
@@ -240,7 +240,13 @@ class TTTGame
   end
 
   def computer_moves
-    board[board.unmarked_keys.sample] = computer.marker
+    if board.immediate_threat(TTTGame::COMPUTER_MARKER)
+      board[board.immediate_threat(TTTGame::COMPUTER_MARKER)] = COMPUTER_MARKER
+    elsif board.immediate_threat(TTTGame::HUMAN_MARKER)
+      board[board.immediate_threat(TTTGame::HUMAN_MARKER)] = COMPUTER_MARKER
+    else
+      board[board.unmarked_keys.sample] = computer.marker
+    end
   end
 
   def current_player_moves
