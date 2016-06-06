@@ -39,6 +39,17 @@ class Board
     nil
   end
 
+  def at_risk_square(case_marker)
+    WINNING_LINES.each do |line|
+      squares = @squares.values_at(*line)
+      if two_case_markers_and_blank?(squares, case_marker)
+        at_risk = line.select { |num| @squares[num].marker == Square::INITIAL_MARKER }
+        return at_risk[0]
+      end
+    end
+    nil
+  end
+
   def reset
     (1..9).each { |key| @squares[key] = Square.new }
   end
@@ -62,6 +73,12 @@ class Board
   def three_identical_markers?(squares)
     markers = squares.select(&:marked?).collect(&:marker)
     return false if markers.size != 3
+    markers.min == markers.max
+  end
+
+  def two_case_markers_and_blank?(squares, case_marker)
+    markers = squares.select(&:marked?).collect(&:marker)
+    return false if markers.count(case_marker) != 2
     markers.min == markers.max
   end
 end
@@ -105,22 +122,6 @@ end
 class Computer < Player
   def initialize(marker)
     super(marker)
-  end
-
-  def moves(board)
-    immediate_threat(board, "X")
-  end
-
-  def immediate_threat(board, marker)
-    threatening_square = nil
-    Board::WINNING_LINES.each do |line|
-      markers = board.squares[*line].marker
-      binding.pry
-      if makers == "X"
-        puts "IT IS WORKING!"
-      end
-    end
-    threatening_square
   end
 end
 
@@ -238,12 +239,25 @@ class TTTGame
     board[square] = human.marker
   end
 
+  def computer_moves
+    computer_at_risk_square = board.at_risk_square(COMPUTER_MARKER)
+    computer_marker = computer.marker
+    human_at_risk_square = board.at_risk_square(HUMAN_MARKER)
+    if !!computer_at_risk_square
+      board[computer_at_risk_square] = computer_marker
+    elsif !!human_at_risk_square
+      board[human_at_risk_square] = computer_marker
+    else
+      board[board.unmarked_keys.sample] = computer_marker
+    end
+  end
+
   def current_player_moves
     if @current_marker == HUMAN_MARKER
       human_moves
       @current_marker = COMPUTER_MARKER
     else
-      computer.moves(board)
+      computer_moves
       @current_marker = HUMAN_MARKER
     end
   end
