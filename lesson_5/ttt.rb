@@ -6,6 +6,8 @@ class Board
                   [[1, 4, 7], [2, 5, 8], [3, 6, 9]] + # cols
                   [[1, 5, 9], [3, 5, 7]]              # diagonals
 
+  attr_reader :squares
+
   def initialize
     @squares = {}
     reset
@@ -57,24 +59,6 @@ class Board
   end
   # rubocop:enable Metrics/AbcSize
 
-  def immediate_threat(marker)
-    WINNING_LINES.each do |line|
-      squares = @squares.values_at(*line)
-      if at_risk_square?(squares, marker)
-        return @squares.key(squares.select(&:unmarked?)[0])
-      end
-    end
-    nil
-  end
-
-  private
-
-  def at_risk_square?(squares, threat_marker)
-    markers = squares.select(&:marked_with?).collect(&:marker)
-    p markers
-    true
-  end
-
   def three_identical_markers?(squares)
     markers = squares.select(&:marked?).collect(&:marker)
     return false if markers.size != 3
@@ -121,6 +105,22 @@ end
 class Computer < Player
   def initialize(marker)
     super(marker)
+  end
+
+  def moves(board)
+    immediate_threat(board, "X")
+  end
+
+  def immediate_threat(board, marker)
+    threatening_square = nil
+    Board::WINNING_LINES.each do |line|
+      markers = board.squares[*line].marker
+      binding.pry
+      if makers == "X"
+        puts "IT IS WORKING!"
+      end
+    end
+    threatening_square
   end
 end
 
@@ -197,7 +197,6 @@ class TTTGame
     The first person to win #{WINNING_SCORE} rounds wins the match.
 
     MSG
-
   end
 
   def display_goodbye_message
@@ -239,22 +238,12 @@ class TTTGame
     board[square] = human.marker
   end
 
-  def computer_moves
-    if board.immediate_threat(TTTGame::COMPUTER_MARKER)
-      board[board.immediate_threat(TTTGame::COMPUTER_MARKER)] = COMPUTER_MARKER
-    elsif board.immediate_threat(TTTGame::HUMAN_MARKER)
-      board[board.immediate_threat(TTTGame::HUMAN_MARKER)] = COMPUTER_MARKER
-    else
-      board[board.unmarked_keys.sample] = computer.marker
-    end
-  end
-
   def current_player_moves
     if @current_marker == HUMAN_MARKER
       human_moves
       @current_marker = COMPUTER_MARKER
     else
-      computer_moves
+      computer.moves(board)
       @current_marker = HUMAN_MARKER
     end
   end
