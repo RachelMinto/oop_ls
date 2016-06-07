@@ -1,5 +1,4 @@
 require 'pry'
-# Need to do: Make update score stick. Don't clear screen after displaying winner.
 
 class Board
   WINNING_LINES = [[1, 2, 3], [4, 5, 6], [7, 8, 9]] + # rows
@@ -163,7 +162,6 @@ class TTTGame
   def play
     clear
     display_welcome_message
-    determine_who_starts
 
     loop do
       loop do
@@ -179,6 +177,7 @@ class TTTGame
         update_score
         display_result
         break if match_winner?
+        start_next_round
         reset_board
       end
 
@@ -211,10 +210,8 @@ class TTTGame
   end
 
   def determine_who_starts
-    if @current_marker == 'choose'
-      answer = validate_yes_no_answer("Would you like to begin? (y/n)")
-      @current_marker = answer[0] == 'y' ? HUMAN_MARKER : COMPUTER_MARKER
-    end
+    answer = validate_yes_no_answer("Would you like to begin? (y/n)")
+    @current_marker = answer[0] == 'y' ? HUMAN_MARKER : COMPUTER_MARKER
   end
 
   def display_player_info
@@ -265,6 +262,7 @@ class TTTGame
   end
 
   def current_player_moves
+    determine_who_starts if @current_marker == 'choose'
     if @current_marker == HUMAN_MARKER
       human_moves
       @current_marker = COMPUTER_MARKER
@@ -294,6 +292,11 @@ class TTTGame
     else
       puts "It's a tie!"
     end
+  end
+
+  def start_next_round
+    puts "Please press enter to begin the next round."
+    gets
   end
 
   def match_winner?
