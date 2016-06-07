@@ -148,7 +148,7 @@ end
 class TTTGame
   HUMAN_MARKER = "X"
   COMPUTER_MARKER = "O"
-  FIRST_TO_MOVE = HUMAN_MARKER
+  FIRST_TO_MOVE = 'choose' #Can also set to HUMAN_MARKER or COMPUTER_MARKER
   WINNING_SCORE = 3
 
   attr_reader :board, :human, :computer
@@ -163,6 +163,7 @@ class TTTGame
   def play
     clear
     display_welcome_message
+    determine_who_starts
 
     loop do
       loop do
@@ -209,9 +210,18 @@ class TTTGame
     display_board
   end
 
+  def determine_who_starts
+    if @current_marker == 'choose'
+      answer = validate_yes_no_answer("Would you like to begin? (y/n)")
+      @current_marker = answer[0] == 'y' ? HUMAN_MARKER : COMPUTER_MARKER
+    end
+  end
+
   def display_player_info
-    puts "You're a #{human.marker}. Computer is a #{computer.marker}."
-    puts "You have #{human.score.value} points and the computer has #{computer.score.value} points."
+    puts <<~MSG
+    You're a #{human.marker}. Computer is a #{computer.marker}.
+    You have #{human.score.value} points and the computer has #{computer.score.value} points.
+    MSG
   end
 
   def display_board
@@ -247,6 +257,8 @@ class TTTGame
       board[computer_at_risk_square] = computer_marker
     elsif !!human_at_risk_square
       board[human_at_risk_square] = computer_marker
+    elsif board.unmarked_keys.include?(5)
+      board[5] = computer_marker
     else
       board[board.unmarked_keys.sample] = computer_marker
     end
@@ -289,15 +301,19 @@ class TTTGame
   end
 
   def play_again?
+    answer = validate_yes_no_answer("Would you like to play again? (y/n)")
+    answer.start_with? 'y'
+  end
+
+  def validate_yes_no_answer(question)
     answer = nil
     loop do
-      puts "Would you like to play again? (y/n)"
+      puts question
       answer = gets.chomp.downcase
       break if %w(y n yes no).include? answer
       puts "Sorry, must be y or n"
     end
-
-    answer == 'y'
+    answer
   end
 
   def clear
