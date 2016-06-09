@@ -152,6 +152,17 @@ class Score
   end
 end
 
+class Node
+  attr_accessor :move, :score
+
+  def initialize(move, score)
+    @move = move
+    @score = score
+  end
+end
+
+
+
 class TTTGame
   HUMAN_MARKER = "X"
   COMPUTER_MARKER = "O"
@@ -256,7 +267,9 @@ class TTTGame
   end
 
   def computer_moves
-    minimax_strategy(board)
+    test_board = board.dup
+    trial = minimax_strategy(60, test_board, COMPUTER_MARKER)
+    puts trial
   end
 
   def current_player_moves
@@ -335,7 +348,7 @@ class TTTGame
     puts ""
   end
 
-  def determine_possible_score(board_state)
+  def heuristic_value(board_state)
     case board.winning_marker
     when human.marker
       -10
@@ -346,30 +359,26 @@ class TTTGame
     end
   end
 
-  def minimax_strategy(board_state)
-    return determine_possible_score(board_state) if board_state.someone_won? || board_state.full?
-    scores = []
-    moves = []
-    puts "Scores are: #{scores} and moves are: #{moves}"
-
-    board_state.unmarked_keys.each do |potential_move|
-      possible_board_state = Board.new
-      possible_board_state.squares = board_state.get_new_state(potential_move, @current_marker)
-      alternate_marker
-      possible_board_state.draw
-      scores.push minimax_strategy(possible_board_state)
-      moves.push(potential_move)
-      puts "Scores are NOW: #{scores} and moves are NOW: #{moves}"
+  def minimax_strategy(depth, test_board, current_player_marker, maximizing=false)
+    if test_board.someone_won? 
+      if maximizing == true
+        value = heuristic_value(test_board)
+      else
+        value = -1 * (heuristic_value(test_board))
+      end
+      return value
     end
 
-    if @current_marker = COMPUTER_MARKER
-      max_score_index = scores.each_with_index.max[1]
-      @choice = moves[max.score.index]
-      return scores[max_score_index]
-    else
-      min_score_index = scores.each_with_index.min[1]
-      @choice = moves[min.score_index]
-      return scores[min_score_index]
+    best_value = -100
+    maximizing = maximizing == true ? false : true
+    test_board.unmarked_keys.each do |child_node|
+      child_board = test_board.dup
+      child_board.squares[child_node].marker = current_player_marker
+      puts "#{current_player_marker} will go in #{child_node}"
+      child_board.draw
+      current_player_marker = current_player_marker == COMPUTER_MARKER ? HUMAN_MARKER : COMPUTER_MARKER
+      score = minimax_strategy(depth-1, child_board, current_player_marker, maximizing)
+      node = Node.new(score, child_node)
     end
   end
 end
