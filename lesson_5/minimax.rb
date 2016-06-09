@@ -368,17 +368,18 @@ class TTTGame
       end
       return value
     end
+    moves = []
 
     best_value = -100
     maximizing = maximizing == true ? false : true
     test_board.unmarked_keys.each do |child_node|
       child_board = test_board.dup
       child_board.squares[child_node].marker = current_player_marker
-      puts "#{current_player_marker} will go in #{child_node}"
       child_board.draw
       current_player_marker = current_player_marker == COMPUTER_MARKER ? HUMAN_MARKER : COMPUTER_MARKER
       score = minimax_strategy(depth-1, child_board, current_player_marker, maximizing)
       node = Node.new(score, child_node)
+      moves << node
     end
   end
 end
