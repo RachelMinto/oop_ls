@@ -351,9 +351,9 @@ class TTTGame
   def heuristic_value(board_state)
     case board.winning_marker
     when human.marker
-      -10
+      -100
     when computer.marker
-      10
+      100
     else
       0
     end
@@ -370,17 +370,18 @@ class TTTGame
     end
     moves = []
 
-    best_value = -100
+    best_value = -1000
     maximizing = maximizing == true ? false : true
     test_board.unmarked_keys.each do |child_node|
       child_board = test_board.dup
       child_board.squares[child_node].marker = current_player_marker
-      child_board.draw
       current_player_marker = current_player_marker == COMPUTER_MARKER ? HUMAN_MARKER : COMPUTER_MARKER
       score = minimax_strategy(depth-1, child_board, current_player_marker, maximizing)
-      node = Node.new(score, child_node)
-      moves << node
+      child_board.squares[child_node].marker = Square::INITIAL_MARKER
+      node = Node.new(child_node, score)
+      moves << node.score
     end
+    moves
   end
 end
 
