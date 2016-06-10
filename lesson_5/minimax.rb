@@ -268,7 +268,7 @@ class TTTGame
 
   def computer_moves
     test_board = board.dup
-    possible_moves = minimax_strategy(0, test_board, COMPUTER_MARKER)
+    possible_moves = minimax_strategy(0, test_board, HUMAN_MARKER)
     p possible_moves
   end
 
@@ -360,6 +360,7 @@ class TTTGame
   end
 
   def minimax_strategy(depth, test_board, current_player_marker, maximizing=false)
+    binding.pry
     if test_board.someone_won? 
       if maximizing == true
         value = heuristic_value(test_board, depth)
@@ -368,24 +369,19 @@ class TTTGame
       end
       return value
     end
-    moves = []
 
     best_value = -1000
     maximizing = maximizing == true ? false : true
+    current_player_marker = current_player_marker == COMPUTER_MARKER ? HUMAN_MARKER : COMPUTER_MARKER
     test_board.unmarked_keys.each do |child_node|
-      child_board = test_board.dup
-      child_board.squares[child_node].marker = current_player_marker
-      node = Node.new(child_node)
-      current_player_marker = current_player_marker == COMPUTER_MARKER ? HUMAN_MARKER : COMPUTER_MARKER
-      unless child_board.someone_won? 
-        current_score = minimax_strategy(depth+1, child_board, current_player_marker, maximizing)
-      end
+      moves << child_node
+      test_board.squares[child_node].marker = current_player_marker
+      current_score = minimax_strategy(depth+1, test_board, current_player_marker, maximizing)
+      binding.pry
       if current_score
         best_value = best_value > current_score ? best_value : current_score
       end
-      node.score = best_value
-      child_board.squares[child_node].marker = Square::INITIAL_MARKER
-      moves << node
+      test_board.squares[child_node].marker = Square::INITIAL_MARKER
     end
     moves
   end
