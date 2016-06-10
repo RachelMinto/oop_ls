@@ -155,9 +155,9 @@ end
 class Node
   attr_accessor :move, :score
 
-  def initialize(move, score)
+  def initialize(move)
     @move = move
-    @score = score
+    @score = -1000
   end
 end
 
@@ -268,8 +268,8 @@ class TTTGame
 
   def computer_moves
     test_board = board.dup
-    trial = minimax_strategy(60, test_board, COMPUTER_MARKER)
-    puts trial
+    possible_moves = minimax_strategy(0, test_board, COMPUTER_MARKER)
+    p possible_moves
   end
 
   def current_player_moves
@@ -348,12 +348,12 @@ class TTTGame
     puts ""
   end
 
-  def heuristic_value(board_state)
+  def heuristic_value(board_state, depth)
     case board.winning_marker
     when human.marker
-      -100
+      -100 + depth
     when computer.marker
-      100
+      100 - depth
     else
       0
     end
@@ -362,9 +362,9 @@ class TTTGame
   def minimax_strategy(depth, test_board, current_player_marker, maximizing=false)
     if test_board.someone_won? 
       if maximizing == true
-        value = heuristic_value(test_board)
+        value = heuristic_value(test_board, depth)
       else
-        value = -1 * (heuristic_value(test_board))
+        value = -1 * (heuristic_value(test_board, depth))
       end
       return value
     end
@@ -375,11 +375,17 @@ class TTTGame
     test_board.unmarked_keys.each do |child_node|
       child_board = test_board.dup
       child_board.squares[child_node].marker = current_player_marker
+      node = Node.new(child_node)
       current_player_marker = current_player_marker == COMPUTER_MARKER ? HUMAN_MARKER : COMPUTER_MARKER
-      score = minimax_strategy(depth-1, child_board, current_player_marker, maximizing)
+      unless child_board.someone_won? 
+        current_score = minimax_strategy(depth+1, child_board, current_player_marker, maximizing)
+      end
+      if current_score
+        best_value = best_value > current_score ? best_value : current_score
+      end
+      node.score = best_value
       child_board.squares[child_node].marker = Square::INITIAL_MARKER
-      node = Node.new(child_node, score)
-      moves << node.score
+      moves << node
     end
     moves
   end
