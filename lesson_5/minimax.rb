@@ -274,12 +274,11 @@ class TTTGame
     legal_moves_with_values = {}
     board.unmarked_keys.each do |node|
       board[node] = COMPUTER_MARKER
-      value = minimax_strategy(0, HUMAN_MARKER)
+      value = minimax_strategy(0, COMPUTER_MARKER)
       board[node] = Square::INITIAL_MARKER
       legal_moves_with_values[node] = value
     end
      square = legal_moves_with_values.key(legal_moves_with_values.values.max)
-     binding.pry
      board[square] = computer.marker
   end
 
@@ -359,7 +358,7 @@ class TTTGame
     puts ""
   end
 
-  def heuristic_value(board_state, depth)
+  def end_state_value(board_state, depth)
     case board.winning_marker
     when human.marker
       depth - 10
@@ -370,27 +369,35 @@ class TTTGame
     end
   end
 
-  def minimax_strategy(depth, current_player_marker, maximizing=false)
+  def minimax_strategy(depth, current_player_marker)
     if board.someone_won? || board.full?
-      value = heuristic_value(board, depth)
-      value *= -1 if maximizing == false
+      value = end_state_value(board, depth)
       return value
     end
 
-    best_value = -100
-    maximizing = maximizing == true ? false : true
     current_player_marker = current_player_marker == COMPUTER_MARKER ? HUMAN_MARKER : COMPUTER_MARKER
-    board.unmarked_keys.each do |child_node|
-      board.squares[child_node].marker = current_player_marker
-      current_score = minimax_strategy(depth+1, current_player_marker, maximizing)
-      board.squares[child_node].marker = Square::INITIAL_MARKER
-      best_value = best_value > current_score ? best_value : current_score
+    if current_player_marker == COMPUTER_MARKER
+      best_value = -100
+      board.unmarked_keys.each do |child_node|
+        board.squares[child_node].marker = current_player_marker
+        current_score = minimax_strategy(depth+1, current_player_marker)
+        board.squares[child_node].marker = Square::INITIAL_MARKER
+        best_value = best_value > current_score ? best_value : current_score
+      end
+
+    else
+      best_value = 100
+      board.unmarked_keys.each do |child_node|
+        board.squares[child_node].marker = current_player_marker
+        current_score = minimax_strategy(depth+1, current_player_marker)
+        board.squares[child_node].marker = Square::INITIAL_MARKER
+        best_value = best_value < current_score ? best_value : current_score
+      end
     end
 
     best_value  
   end
-  # Don't neeed to keep track of moves if you start by putting in all legal moves individually and then just taking the max value to return.
-end
+ end
 
 game = TTTGame.new
 game.play
