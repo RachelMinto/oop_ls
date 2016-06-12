@@ -2,6 +2,7 @@
 # frozen_string_literal: true
 
 class Board
+  WIDTH = 60
   WINNING_LINES = [[1, 2, 3], [4, 5, 6], [7, 8, 9]] +
                   [[1, 4, 7], [2, 5, 8], [3, 6, 9]] +
                   [[1, 5, 9], [3, 5, 7]]
@@ -59,17 +60,18 @@ class Board
 
   # rubocop:disable Metrics/AbcSize
   def draw
-    puts "     |     |"
-    puts "  #{@squares[1]}  |  #{@squares[2]}  |  #{@squares[3]}"
-    puts "     |     |"
-    puts "-----+-----+-----"
-    puts "     |     |"
-    puts "  #{@squares[4]}  |  #{@squares[5]}  |  #{@squares[6]}"
-    puts "     |     |"
-    puts "-----+-----+-----"
-    puts "     |     |"
-    puts "  #{@squares[7]}  |  #{@squares[8]}  |  #{@squares[9]}"
-    puts "     |     |"
+    w = WIDTH
+    puts "     |     |     ".center(w)
+    puts "  #{@squares[1]}  |  #{@squares[2]}  |  #{@squares[3]}  ".center(w)
+    puts "     |     |     ".center(w)
+    puts "-----+-----+-----".center(w)
+    puts "     |     |     ".center(w)
+    puts "  #{@squares[4]}  |  #{@squares[5]}  |  #{@squares[6]}  ".center(w)
+    puts "     |     |     ".center(w)
+    puts "-----+-----+-----".center(w)
+    puts "     |     |     ".center(w)
+    puts "  #{@squares[7]}  |  #{@squares[8]}  |  #{@squares[9]}  ".center(w)
+    puts "     |     |     ".center(w)
   end
   # rubocop:enable Metrics/AbcSize
 
@@ -136,8 +138,8 @@ class Human < Player
     puts "Hello, what is your name?"
     loop do
       name = gets.chomp
-      break unless name.to_s.strip.empty?
-      puts "Sorry, you must enter a value."
+      break unless name.to_s.strip.empty? || name.to_s.length > 17
+      puts "Sorry, your name must be between 1 and 17 characters long."
     end
     @name = name
   end
@@ -189,7 +191,9 @@ module Display
   private
 
   def display_welcome_message
+    clear
     puts <<~MSG
+
     #{human.name}, welcome to Tic Tac Toe!
     Today you will be playing against #{computer.name}.
     The first person to win #{TTTGame::WINNING_SCORE} rounds wins the match.
@@ -198,13 +202,31 @@ module Display
     sleep(3)
   end
 
-  def clear_screen_and_display_board
+  def clear_screen_and_display_game_state
     clear
+    display_player_info
     display_board
   end
 
   def clear
-    system "clear"
+    system('clear') || system('cls')
+  end
+
+  def display_player_info
+    display_score(Board::WIDTH)
+    display_symbols(Board::WIDTH)
+  end
+
+  def display_score(width)
+    computer_points = "#{computer.name}'s score: #{computer.score.value}"
+    human_points = "#{human.name}'s score:  #{human.score.value}"
+    puts human_points.ljust(width / 2) + computer_points.rjust(width / 2)
+  end
+
+  def display_symbols(width)
+    computer_symbol = "#{computer.name}'s symbol: #{computer.marker}"
+    human_symbol = "#{human.name}'s symbol: #{human.marker}"
+    puts human_symbol.ljust(width / 2) + computer_symbol.rjust(width / 2)
   end
 
   def display_board
@@ -213,24 +235,12 @@ module Display
     puts ""
   end
 
-
-  def display_player_info
-    comp_name = computer.name
-    hum_points = human.score.value
-    comp_points = computer.score.value
-
-    puts <<~MSG
-    You're a #{human.marker}. #{comp_name} is a #{computer.marker}.
-    You have #{hum_points} points and #{comp_name} has #{comp_points} points.
-    MSG
-  end
-
   def display_result
-    clear_screen_and_display_board
+    clear_screen_and_display_game_state
 
     case board.winning_marker
     when human.marker
-      puts "You won!"
+      puts "Congratulations, #{human.name}. You won!"
     when computer.marker
       puts "#{computer.name} won!"
     else
@@ -241,19 +251,22 @@ module Display
   def display_match_winner
     case board.winning_marker
     when human.marker
-      puts "You won the match!"
+      puts "Congratulations, #{human.name}. You won the match!"
     when computer.marker
       puts "#{computer.name} won the match!"
     end
   end
 
   def display_play_again_message
-    puts "Let's play again!"
+    puts "Alright, #{human.name}. Let's play again!"
     puts ""
   end
 
   def display_goodbye_message
-    puts "Thanks for playing Tic Tac Toe! Goodbye!"
+    clear
+    puts "Thanks for playing Tic Tac Toe, #{human.name}! Goodbye!"
+    sleep(2.1)
+    clear
   end
 end
 
@@ -261,8 +274,8 @@ module Movable
   private
 
   def determine_who_starts
-    answer = validate_yes_no_answer("Would you like to begin? (y/n)")
-    @current_marker = answer[0] == 'y' ? human.marker : computer.marker
+    ans = validate_y_n_answer("#{human.name}, would you like to begin? (y/n)")
+    @current_marker = ans[0] == 'y' ? human.marker : computer.marker
   end
 
   def human_moves
@@ -278,7 +291,7 @@ module Movable
   end
 
   def computer_moves
-    square = board.empty? ? 5 : best_legal_move
+    square = board.squares[5].unmarked? ? 5 : best_legal_move
     board[square] = computer.marker
   end
 
@@ -294,14 +307,14 @@ module Movable
   end
 
   def best_legal_move
-    legal_moves_with_values = {}
+    moves_with_values = {}
     board.unmarked_keys.each do |node|
       board[node] = computer.marker
       value = minimax_strategy(0, computer.marker)
       board[node] = Square::INITIAL_MARKER
-      legal_moves_with_values[node] = value
+      moves_with_values[node] = value
     end
-    legal_moves_with_values.key(legal_moves_with_values.values.max)
+    moves_with_values.key(moves_with_values.values.max)
   end
 
   def end_state_value(depth)
@@ -356,58 +369,10 @@ module Movable
   end
 end
 
-class TTTGame
-  include Display
-  include Movable
-  FIRST_TO_MOVE = 'choose' # Can set to human.marker or computer.marker
+module GameMechanics
   WINNING_SCORE = 3
 
-  attr_reader :board, :human, :computer
-
-  def initialize
-    @board = Board.new
-    @human = Human.new
-    @computer = @human.marker == 'O' ? Computer.new('X') : Computer.new('O')
-    @current_marker = FIRST_TO_MOVE
-  end
-
-  def play
-    clear
-    display_welcome_message
-
-    loop do
-      play_match
-      display_match_winner
-      break unless play_again?
-      reset_board
-      display_play_again_message
-      reset_score
-    end
-
-    display_goodbye_message
-  end
-
   private
-
-  def play_match
-    loop do
-      display_player_info
-      display_board
-
-      loop do
-        current_player_moves
-        break if board.someone_won? || board.full?
-        clear_screen_and_display_board
-      end
-
-      update_score
-      break if match_winner?
-      display_result
-      start_next_round
-      reset_board
-    end
-    clear_screen_and_display_board
-  end
 
   def joinor(array, seperator=', ', conjunction='or ')
     return array if array.length == 1
@@ -435,11 +400,11 @@ class TTTGame
   end
 
   def play_again?
-    answer = validate_yes_no_answer("Would you like to play again? (y/n)")
+    answer = validate_y_n_answer("Would you like to play again? (y/n)")
     answer.start_with? 'y'
   end
 
-  def validate_yes_no_answer(question)
+  def validate_y_n_answer(question)
     answer = nil
     loop do
       puts question
@@ -452,12 +417,64 @@ class TTTGame
 
   def reset_board
     board.reset
-    @current_marker = FIRST_TO_MOVE
+    @current_marker = TTTGame::FIRST_TO_MOVE
     clear
   end
 
   def reset_score
     human.score.reset && computer.score.reset
+  end
+end
+
+class TTTGame
+  include Display
+  include Movable
+  include GameMechanics
+  FIRST_TO_MOVE = 'choose' # Can set to human.marker or computer.marker
+
+  attr_reader :board, :human, :computer
+
+  def initialize
+    @board = Board.new
+    @human = Human.new
+    @computer = @human.marker == 'O' ? Computer.new('X') : Computer.new('O')
+    @current_marker = FIRST_TO_MOVE
+  end
+
+  def play
+    display_welcome_message
+
+    loop do
+      play_match
+      display_match_winner
+      break unless play_again?
+      reset_board
+      display_play_again_message
+      reset_score
+    end
+
+    display_goodbye_message
+  end
+
+  private
+
+  def play_match
+    loop do
+      display_board
+
+      loop do
+        current_player_moves
+        break if board.someone_won? || board.full?
+        clear_screen_and_display_game_state
+      end
+
+      update_score
+      break if match_winner?
+      display_result
+      start_next_round
+      reset_board
+    end
+    clear_screen_and_display_game_state
   end
 end
 
