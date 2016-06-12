@@ -1,4 +1,6 @@
 
+# frozen_string_literal: true
+
 class Board
   WINNING_LINES = [[1, 2, 3], [4, 5, 6], [7, 8, 9]] +
                   [[1, 4, 7], [2, 5, 8], [3, 6, 9]] +
@@ -34,9 +36,7 @@ class Board
   def winning_marker
     WINNING_LINES.each do |line|
       squares = @squares.values_at(*line)
-      if three_identical_markers?(squares)
-        return squares.first.marker
-      end
+      return squares.first.marker if three_identical_markers?(squares)
     end
     nil
   end
@@ -51,12 +51,6 @@ class Board
       return at_risk[0]
     end
     nil
-  end
-
-  def get_new_state(square, marker)
-    new_squares = @squares.dup
-    new_squares[square].marker = marker
-    new_squares
   end
 
   def reset
@@ -79,6 +73,8 @@ class Board
   end
   # rubocop:enable Metrics/AbcSize
 
+  private
+
   def three_identical_markers?(squares)
     markers = squares.select(&:marked?).collect(&:marker)
     return false if markers.size != 3
@@ -93,7 +89,7 @@ class Board
 end
 
 class Square
-  INITIAL_MARKER = " ".freeze
+  INITIAL_MARKER = " "
 
   attr_accessor :marker
 
@@ -119,8 +115,8 @@ class Square
 end
 
 class Player
-  attr_reader :name
-  attr_accessor :marker, :score
+  attr_reader :name, :marker
+  attr_accessor :score
 
   def initialize
     @score = Score.new
@@ -130,6 +126,7 @@ end
 
 class Human < Player
   def initialize
+    system('clear') || system('cls')
     super()
     set_marker
   end
@@ -198,16 +195,24 @@ module Display
     The first person to win #{TTTGame::WINNING_SCORE} rounds wins the match.
 
     MSG
-  end
-
-  def display_goodbye_message
-    puts "Thanks for playing Tic Tac Toe! Goodbye!"
+    sleep(3)
   end
 
   def clear_screen_and_display_board
     clear
     display_board
   end
+
+  def clear
+    system "clear"
+  end
+
+  def display_board
+    puts ""
+    board.draw
+    puts ""
+  end
+
 
   def display_player_info
     comp_name = computer.name
@@ -218,12 +223,6 @@ module Display
     You're a #{human.marker}. #{comp_name} is a #{computer.marker}.
     You have #{hum_points} points and #{comp_name} has #{comp_points} points.
     MSG
-  end
-
-  def display_board
-    puts ""
-    board.draw
-    puts ""
   end
 
   def display_result
@@ -248,19 +247,119 @@ module Display
     end
   end
 
-  def clear
-    system "clear"
-  end
-
   def display_play_again_message
     puts "Let's play again!"
     puts ""
+  end
+
+  def display_goodbye_message
+    puts "Thanks for playing Tic Tac Toe! Goodbye!"
+  end
+end
+
+module Movable
+  private
+
+  def determine_who_starts
+    answer = validate_yes_no_answer("Would you like to begin? (y/n)")
+    @current_marker = answer[0] == 'y' ? human.marker : computer.marker
+  end
+
+  def human_moves
+    puts "Choose a square (#{joinor(board.unmarked_keys)}):"
+    square = nil
+    loop do
+      square = gets.chomp.to_i
+      break if board.unmarked_keys.include?(square)
+      puts "Sorry, that's not a valid choice."
+    end
+
+    board[square] = human.marker
+  end
+
+  def computer_moves
+    square = board.empty? ? 5 : best_legal_move
+    board[square] = computer.marker
+  end
+
+  def current_player_moves
+    determine_who_starts if @current_marker == 'choose'
+    @current_marker == human.marker ? human_moves : computer_moves
+    alternate_marker
+  end
+
+  def alternate_marker
+    h_marker = human.marker
+    @current_marker = @current_marker == h_marker ? computer.marker : h_marker
+  end
+
+  def best_legal_move
+    legal_moves_with_values = {}
+    board.unmarked_keys.each do |node|
+      board[node] = computer.marker
+      value = minimax_strategy(0, computer.marker)
+      board[node] = Square::INITIAL_MARKER
+      legal_moves_with_values[node] = value
+    end
+    legal_moves_with_values.key(legal_moves_with_values.values.max)
+  end
+
+  def end_state_value(depth)
+    case board.winning_marker
+    when human.marker
+      depth - 10
+    when computer.marker
+      10 - depth
+    else
+      0
+    end
+  end
+
+  def max_strategy(depth, current_player_marker)
+    best_value = -100
+    board.unmarked_keys.each do |child_node|
+      board.squares[child_node].marker = current_player_marker
+      current_score = minimax_strategy(depth + 1, current_player_marker)
+      board.squares[child_node].marker = Square::INITIAL_MARKER
+      best_value = best_value > current_score ? best_value : current_score
+    end
+    best_value
+  end
+
+  def min_strategy(depth, current_player_marker)
+    best_value = 100
+    board.unmarked_keys.each do |child_node|
+      board.squares[child_node].marker = current_player_marker
+      current_score = minimax_strategy(depth + 1, current_player_marker)
+      board.squares[child_node].marker = Square::INITIAL_MARKER
+      best_value = best_value < current_score ? best_value : current_score
+    end
+    best_value
+  end
+
+  def alternate_test_marker(current_player_marker)
+    current_player_marker == computer.marker ? human.marker : computer.marker
+  end
+
+  def minimax_strategy(depth, current_player_marker)
+    return end_state_value(depth) if board.someone_won? || board.full?
+
+    current_player_marker = alternate_test_marker(current_player_marker)
+    case current_player_marker
+    when computer.marker
+      best_value = max_strategy(depth, current_player_marker)
+    when human.marker
+      best_value = min_strategy(depth, current_player_marker)
+    end
+
+    best_value
   end
 end
 
 class TTTGame
   include Display
-  FIRST_TO_MOVE = 'choose'.freeze # Can set to human.marker or computer.marker
+  include Movable
+  FIRST_TO_MOVE = 'choose' # Can set to human.marker or computer.marker
   WINNING_SCORE = 3
 
   attr_reader :board, :human, :computer
@@ -307,47 +406,14 @@ class TTTGame
       start_next_round
       reset_board
     end
-    display_board
-  end
-
-  def determine_who_starts
-    answer = validate_yes_no_answer("Would you like to begin? (y/n)")
-    @current_marker = answer[0] == 'y' ? human.marker : computer.marker
+    clear_screen_and_display_board
   end
 
   def joinor(array, seperator=', ', conjunction='or ')
     return array if array.length == 1
     joined_string = ''
-    array[0..-2].each { |key| joined_string << key.to_s + seperator }
+    array[0..-2].each { |key| joined_string += (key.to_s + seperator) }
     joined_string = joined_string + conjunction + array.last.to_s
-  end
-
-  def human_moves
-    puts "Choose a square (#{joinor(board.unmarked_keys)}):"
-    square = nil
-    loop do
-      square = gets.chomp.to_i
-      break if board.unmarked_keys.include?(square)
-      puts "Sorry, that's not a valid choice."
-    end
-
-    board[square] = human.marker
-  end
-
-  def computer_moves
-    square = board.empty? ? 5 : best_legal_move
-    board[square] = computer.marker
-  end
-
-  def current_player_moves
-    determine_who_starts if @current_marker == 'choose'
-    @current_marker == human.marker ? human_moves : computer_moves
-    alternate_marker
-  end
-
-  def alternate_marker
-    h_marker = human.marker
-    @current_marker = @current_marker == h_marker ? computer.marker : h_marker
   end
 
   def update_score
@@ -392,67 +458,6 @@ class TTTGame
 
   def reset_score
     human.score.reset && computer.score.reset
-  end
-
-  def best_legal_move
-    legal_moves_with_values = {}
-    board.unmarked_keys.each do |node|
-      board[node] = computer.marker
-      value = minimax_strategy(0, computer.marker)
-      board[node] = Square::INITIAL_MARKER
-      legal_moves_with_values[node] = value
-    end
-    legal_moves_with_values.key(legal_moves_with_values.values.max)
-  end
-
-  def end_state_value(depth)
-    case board.winning_marker
-    when human.marker
-      depth - 10
-    when computer.marker
-      10 - depth
-    else
-      0
-    end
-  end
-
-  def max_strategy
-
-  end
-
-  def min_strategy
-
-  end
-
-  def alternate_test_marker(current_player_marker)
-    current_player_marker == computer.marker ? human.marker : computer.marker
-  end
-
-  def minimax_strategy(depth, current_player_marker)
-    return end_state_value(depth) if board.someone_won? || board.full?
-
-    current_player_marker = alternate_test_marker(current_player_marker)
-
-    if current_player_marker == computer.marker
-      best_value = -100
-      board.unmarked_keys.each do |child_node|
-        board.squares[child_node].marker = current_player_marker
-        current_score = minimax_strategy(depth + 1, current_player_marker)
-        board.squares[child_node].marker = Square::INITIAL_MARKER
-        best_value = best_value > current_score ? best_value : current_score
-      end
-
-    else
-      best_value = 100
-      board.unmarked_keys.each do |child_node|
-        board.squares[child_node].marker = current_player_marker
-        current_score = minimax_strategy(depth + 1, current_player_marker)
-        board.squares[child_node].marker = Square::INITIAL_MARKER
-        best_value = best_value < current_score ? best_value : current_score
-      end
-    end
-
-    best_value
   end
 end
 
