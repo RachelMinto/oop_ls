@@ -430,7 +430,7 @@ class TTTGame
   include Display
   include Movable
   include GameMechanics
-  FIRST_TO_MOVE = 'choose' 
+  FIRST_TO_MOVE = 'choose'
 
   attr_reader :board, :human, :computer
 
