@@ -1,8 +1,8 @@
 
 class Board
-  WINNING_LINES = [[1, 2, 3], [4, 5, 6], [7, 8, 9]] + 
-                  [[1, 4, 7], [2, 5, 8], [3, 6, 9]] + 
-                  [[1, 5, 9], [3, 5, 7]]              
+  WINNING_LINES = [[1, 2, 3], [4, 5, 6], [7, 8, 9]] +
+                  [[1, 4, 7], [2, 5, 8], [3, 6, 9]] +
+                  [[1, 5, 9], [3, 5, 7]]
 
   attr_accessor :squares
 
@@ -44,12 +44,11 @@ class Board
   def at_risk_square(case_marker)
     WINNING_LINES.each do |line|
       squares = @squares.values_at(*line)
-      if two_case_markers_and_blank?(squares, case_marker)
-        at_risk = line.select do |num|
-          @squares[num].marker == Square::INITIAL_MARKER
-        end
-        return at_risk[0]
+      next unless two_case_markers_and_blank?(squares, case_marker)
+      at_risk = line.select do |num|
+        @squares[num].marker == Square::INITIAL_MARKER
       end
+      return at_risk[0]
     end
     nil
   end
@@ -94,7 +93,7 @@ class Board
 end
 
 class Square
-  INITIAL_MARKER = " "
+  INITIAL_MARKER = " ".freeze
 
   attr_accessor :marker
 
@@ -120,14 +119,13 @@ class Square
 end
 
 class Player
-  attr_reader :marker, :name
-  attr_accessor :score
+  attr_reader :name
+  attr_accessor :marker, :score
 
   def initialize
     @score = Score.new
     set_name
   end
-
 end
 
 class Human < Player
@@ -153,24 +151,20 @@ class Human < Player
     loop do
       marker = gets.chomp
       break unless marker.to_s.strip.length != 1
-      puts "Sorry, you must enter one letter or number."
+      puts "Sorry, you must enter one letter, symbol, or number."
     end
     @marker = marker
   end
 end
 
 class Computer < Player
-  def initialize(marker)
+  def initialize(m)
     super()
-    set_marker(marker)
+    @marker = m
   end
 
   def set_name
     @name = ['Elizabeth Bennet', 'Fanny Price', 'Fitzwilliam Darcy'].sample
-  end
-
-  def set_marker(marker)
-    @marker = marker
   end
 end
 
@@ -194,26 +188,12 @@ class Score
   end
 end
 
-class Node
-  attr_accessor :moves, :score
-
-  def initialize(move)
-    @moves = [move]
-    @score = -1000
-  end
-
-  def add_move(move)
-    self.moves.push(move)
-  end
-end
-
 module Display
-
   private
 
   def display_welcome_message
     puts <<~MSG
-    #{human.name}, welcome to Tic Tac Toe! 
+    #{human.name}, welcome to Tic Tac Toe!
     Today you will be playing against #{computer.name}.
     The first person to win #{TTTGame::WINNING_SCORE} rounds wins the match.
 
@@ -280,7 +260,7 @@ end
 
 class TTTGame
   include Display
-  FIRST_TO_MOVE = 'choose' # Can also set to human.marker or computer.marker
+  FIRST_TO_MOVE = 'choose'.freeze # Can set to human.marker or computer.marker
   WINNING_SCORE = 3
 
   attr_reader :board, :human, :computer
@@ -297,24 +277,7 @@ class TTTGame
     display_welcome_message
 
     loop do
-      loop do
-        display_player_info
-        display_board
-
-        loop do
-          current_player_moves
-          break if board.someone_won? || board.full?
-          clear_screen_and_display_board
-        end
-
-        update_score
-        break if match_winner?
-        display_result
-        start_next_round
-        reset_board
-      end
-
-      display_board
+      play_match
       display_match_winner
       break unless play_again?
       reset_board
@@ -326,6 +289,26 @@ class TTTGame
   end
 
   private
+
+  def play_match
+    loop do
+      display_player_info
+      display_board
+
+      loop do
+        current_player_moves
+        break if board.someone_won? || board.full?
+        clear_screen_and_display_board
+      end
+
+      update_score
+      break if match_winner?
+      display_result
+      start_next_round
+      reset_board
+    end
+    display_board
+  end
 
   def determine_who_starts
     answer = validate_yes_no_answer("Would you like to begin? (y/n)")
@@ -352,19 +335,7 @@ class TTTGame
   end
 
   def computer_moves
-    square = ''
-    if board.empty?
-      square = 5
-    else
-      legal_moves_with_values = {}
-      board.unmarked_keys.each do |node|
-        board[node] = computer.marker
-        value = minimax_strategy(0, computer.marker)
-        board[node] = Square::INITIAL_MARKER
-        legal_moves_with_values[node] = value
-      end
-      square = legal_moves_with_values.key(legal_moves_with_values.values.max)
-    end
+    square = board.empty? ? 5 : best_legal_move
     board[square] = computer.marker
   end
 
@@ -375,7 +346,8 @@ class TTTGame
   end
 
   def alternate_marker
-    @current_marker = @current_marker == human.marker ? computer.marker : human.marker
+    h_marker = human.marker
+    @current_marker = @current_marker == h_marker ? computer.marker : h_marker
   end
 
   def update_score
@@ -422,6 +394,17 @@ class TTTGame
     human.score.reset && computer.score.reset
   end
 
+  def best_legal_move
+    legal_moves_with_values = {}
+    board.unmarked_keys.each do |node|
+      board[node] = computer.marker
+      value = minimax_strategy(0, computer.marker)
+      board[node] = Square::INITIAL_MARKER
+      legal_moves_with_values[node] = value
+    end
+    legal_moves_with_values.key(legal_moves_with_values.values.max)
+  end
+
   def end_state_value(depth)
     case board.winning_marker
     when human.marker
@@ -433,13 +416,23 @@ class TTTGame
     end
   end
 
-  def minimax_strategy(depth, current_player_marker)
-    if board.someone_won? || board.full?
-      value = end_state_value(depth)
-      return value
-    end
+  def max_strategy
 
-    current_player_marker = current_player_marker == computer.marker ? human.marker : computer.marker
+  end
+
+  def min_strategy
+
+  end
+
+  def alternate_test_marker(current_player_marker)
+    current_player_marker == computer.marker ? human.marker : computer.marker
+  end
+
+  def minimax_strategy(depth, current_player_marker)
+    return end_state_value(depth) if board.someone_won? || board.full?
+
+    current_player_marker = alternate_test_marker(current_player_marker)
+
     if current_player_marker == computer.marker
       best_value = -100
       board.unmarked_keys.each do |child_node|
