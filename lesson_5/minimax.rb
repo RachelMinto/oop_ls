@@ -374,7 +374,7 @@ module GameMechanics
     return array if array.length == 1
     joined_string = ''
     array[0..-2].each { |key| joined_string += (key.to_s + seperator) }
-    joined_string = joined_string + conjunction + array.last.to_s
+    joined_string + conjunction + array.last.to_s
   end
 
   def increment_score
