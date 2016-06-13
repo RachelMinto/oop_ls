@@ -103,10 +103,6 @@ class Square
     @marker
   end
 
-  def marked_with?
-    marker == "X"
-  end
-
   def unmarked?
     marker == INITIAL_MARKER
   end
@@ -129,7 +125,7 @@ end
 class Human < Player
   def initialize
     system('clear') || system('cls')
-    super()
+    super
     set_marker
   end
 
@@ -174,7 +170,7 @@ class Score
     @value = 0
   end
 
-  def update
+  def increment
     self.value += 1
   end
 
@@ -183,7 +179,7 @@ class Score
   end
 
   def to_s
-    self.value
+    "#{value}"
   end
 end
 
@@ -381,12 +377,12 @@ module GameMechanics
     joined_string = joined_string + conjunction + array.last.to_s
   end
 
-  def update_score
+  def increment_score
     case board.winning_marker
     when human.marker
-      human.score.update
+      human.score.increment
     when computer.marker
-      computer.score.update
+      computer.score.increment
     end
   end
 
@@ -468,7 +464,7 @@ class TTTGame
         clear_screen_and_display_game_state
       end
 
-      update_score
+      increment_score
       break if match_winner?
       display_result
       start_next_round
