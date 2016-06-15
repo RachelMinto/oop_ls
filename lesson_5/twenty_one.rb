@@ -5,8 +5,6 @@
 # Don't clear until pressing enter after welcome. 
 # Don't let dealer hit if it busts.
 
-require 'pry'
-
 class Participant
   MAX_ALLOWED_POINTS = 21
   attr_accessor :hand
@@ -20,7 +18,7 @@ class Participant
   end
 
   def busted?
-    @total > MAX_ALLOWED_POINTS
+    self.total > MAX_ALLOWED_POINTS
   end
 
   def stayed?
@@ -111,7 +109,11 @@ class Dealer < Participant
   end
 
   def deal(player)
-    card = @deck.cards.sample
+    card = ''
+    loop do 
+      card = @deck.cards.sample
+      break unless deck.dealt_cards.include? card
+    end
     deck.dealt_cards.push(card)
     player.hand.push(card)
     card
@@ -249,17 +251,20 @@ class Game
     loop do
       display_game_state
       break if player.busted? || player.stayed?
-      answer = hit_or_stay
+      answer = hit_stay_or_total
       case answer
       when /^h/ then dealer.hit(player)
       when /^s/ then player.stay
-      when /^t/ then puts "Your cards total to #{player.total} points."
-        #Need to prevent from clearing before being seen.
+      when /^t/ then
+        puts ""
+        puts "Your cards total to #{player.total} points."
+        puts "Please press enter to continue."
+        gets.chomp
       end
     end
   end
 
-  def hit_or_stay
+  def hit_stay_or_total
     puts ""
     answer = ''
     loop do
@@ -272,13 +277,11 @@ class Game
   end
 
   def dealer_turn
-    unless player.busted?
-      while dealer.total < 17 || dealer.total < player.total || dealer.busted?
-        dealer.show_cards(true)
-        dealer.hit(dealer)
-        break if dealer.busted?
+    loop do 
+      if dealer.total < 17 || dealer.total < player.total
+        dealer.hit(dealer) unless player.busted?
       end
-      dealer.stay unless dealer.busted?
+      break if dealer.busted?
     end
   end
 end
