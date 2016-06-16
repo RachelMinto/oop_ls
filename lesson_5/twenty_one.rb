@@ -1,9 +1,8 @@
 
 # frozen_string_literal: true
 
-# To do: set up nice playing screen. Clear. List player cards. Colorize.
-# Don't clear until pressing enter after welcome. 
-# Don't let dealer hit if it busts.
+# To do: set up nice playing screen. Clear_screen. List player cards. Colorize.
+# Change display to show second dealer card during dealer turn.
 
 class Participant
   MAX_ALLOWED_POINTS = 21
@@ -18,7 +17,7 @@ class Participant
   end
 
   def busted?
-    self.total > MAX_ALLOWED_POINTS
+    total > MAX_ALLOWED_POINTS
   end
 
   def stayed?
@@ -80,7 +79,6 @@ class Player < Participant
   def set_name
     system('clear') || system('cls')
     name = ''
-    puts ''
     puts "Hello, what is your name?"
     loop do
       name = gets.chomp
@@ -110,7 +108,7 @@ class Dealer < Participant
 
   def deal(player)
     card = ''
-    loop do 
+    loop do
       card = @deck.cards.sample
       break unless deck.dealt_cards.include? card
     end
@@ -150,33 +148,30 @@ class Card
     @suit = suit
     @value = value
   end
+
+  def red
+    "\e[31m#{self}\e[0m"
+  end
 end
 
 module Display
   def display_welcome_message
-    clear
+    clear_screen
     puts "Welcome to Twenty-One, #{player.name}!"
     puts "#{dealer.name} will be your dealer today."
     puts ""
-    sleep(1.8)
+    sleep(2.3)
   end
 
-  # def display_initial_cards
-  #   player.show_cards(true)
-  #   dealer.show_cards(false)
-  #   puts "please press Enter to continue."
-  #   gets.chomp
-  # end
-
-  def display_game_state
-    clear
+  def display_game_state(show_dealer_card_2)
+    clear_screen
     width = Game::LINE_WIDTH
-    display_hands(width)
+    display_hands(width, show_dealer_card_2)
   end
 
-  def display_hands(width)
+  def display_hands(width, show_dealer_card_2)
     display_player_titles(width)
-    display_player_cards(width)
+    display_player_cards(width, show_dealer_card_2)
     puts ""
     puts "*  *  *  *  *  *  *".center(width)
     puts ""
@@ -188,35 +183,63 @@ module Display
     puts player_title.ljust(width / 2) + dealer_title.rjust(width / 2)
   end
 
-  def display_player_cards(width)
-    player_cards = player.cards_in_array
-    dealer_cards = dealer.cards_in_array
-    shortest_length = player_cards.length < dealer_cards.length ? player_cards.length : dealer_cards.length
+  def display_player_cards(width, show_dealer_card_2)
+    small_hand_size = find_smallest_hand
+    display_equal_number_of_cards(width, small_hand_size, show_dealer_card_2)
+    display_extra_cards(width, small_hand_size)
+  end
+
+  def display_equal_number_of_cards(width, small_hand_size, show_dealer_card_2)
     i = 0
-    while i < shortest_length
-      puts player.show_cards[i].ljust(width / 2) + dealer.show_cards(false)[i].rjust(width / 2)
+    while i < small_hand_size
+      puts player.show_cards[i].ljust(width / 2) + 
+      dealer.show_cards(show_dealer_card_2)[i].rjust(width / 2)
       i += 1
     end
-    if player_cards.length > shortest_length
-      puts player.show_cards[shortest_length..player_cards.length]
-    elsif dealer_cards.length > shortest_length
-      puts dealer.show_cards[shortest_length..player_cards.length]
+  end
+
+  def display_extra_cards(width, small_hand_size)
+    player_cards = player.cards_in_array
+    dealer_cards = dealer.cards_in_array
+    if player_cards.length > small_hand_size
+      puts player.show_cards[small_hand_size..player_cards.length]
+    elsif dealer_cards.length > small_hand_size
+      dealer.show_cards[small_hand_size..dealer_cards.length].each do |card|
+        puts card.rjust(width)
+      end
     end
+  end
+
+  def find_smallest_hand
+    player_hand_size = player.cards_in_array.length
+    dealer_hand_size = dealer.cards_in_array.length
+    player_hand_size < dealer_hand_size ? player_hand_size : dealer_hand_size
   end
 
   def display_result
+    display_game_state(show_dealer_card_2 = true)
     puts ""
     if dealer.busted?
-      puts "The dealer has busted so you win!"
+      puts "The dealer has busted with #{dealer.total} points so you win!"
     elsif player.busted?
-      puts "You have busted so the dealer wins!"
+      puts "You have busted with #{player.total} points so the dealer wins!"
     else
       puts "Your total is #{player.total} and the dealer has #{dealer.total}."
+      if player.total > dealer.total then puts "You win!"
+      elsif player.total < dealer.total then puts "#{dealer.name} wins!"
+      else puts "It's a tie!"
+      end
     end
   end
 
-  def clear
+  def clear_screen
     system('clear') || system('cls')
+  end
+
+  def display_end_message
+    puts ""
+    puts "Thank you for playing Twenty-One. Goodbye."
+    puts ""
   end
 end
 
@@ -234,10 +257,10 @@ class Game
   def play
     display_welcome_message
     deal_cards
-    # display_initial_cards
     player_turn
     dealer_turn
     display_result
+    display_end_message
   end
 
   def deal_cards
@@ -249,7 +272,7 @@ class Game
 
   def player_turn
     loop do
-      display_game_state
+      display_game_state(show_dealer_card_2=false)
       break if player.busted? || player.stayed?
       answer = hit_stay_or_total
       case answer
@@ -258,8 +281,7 @@ class Game
       when /^t/ then
         puts ""
         puts "Your cards total to #{player.total} points."
-        puts "Please press enter to continue."
-        gets.chomp
+        press_enter_to_continue
       end
     end
   end
@@ -277,12 +299,23 @@ class Game
   end
 
   def dealer_turn
-    loop do 
-      if dealer.total < 17 || dealer.total < player.total
-        dealer.hit(dealer) unless player.busted?
+    unless player.busted?
+      loop do
+        display_game_state(show_dealer_card_2 = true)
+        if dealer.total < 17 || dealer.total < player.total
+          dealer.hit(dealer)
+          press_enter_to_continue
+        else
+          dealer.stay
+        end
+        break if dealer.busted? || dealer.stayed?
       end
-      break if dealer.busted?
     end
+  end
+
+  def press_enter_to_continue
+    puts "Please press enter to continue."
+    gets.chomp
   end
 end
 
