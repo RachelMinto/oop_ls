@@ -1,8 +1,7 @@
 
 # frozen_string_literal: true
 
-# To do: set up nice playing screen. Clear_screen. List player cards. Colorize.
-# Change display to show second dealer card during dealer turn.
+# To do: Colorize.
 
 class Participant
   MAX_ALLOWED_POINTS = 21
