@@ -1,8 +1,6 @@
 
 # frozen_string_literal: true
 
-require 'pry'
-
 class Participant
   MAX_ALLOWED_POINTS = 21
   attr_accessor :hand
@@ -134,7 +132,7 @@ class Card
   def initialize(suit, value)
     @suit = suit
     @value = value
-    @color = suit == "Diamonds" || suit == "Hears" ? "red" : "black"
+    @color = suit == "Diamonds" || suit == "Hearts" ? "red" : "black"
   end
 end
 
@@ -152,23 +150,23 @@ module Display
     cards = participant.cards_in_array
     if show_all_cards
       cards.each do |value, suit, color| 
-        described_cards << "#{value} of #{suit}".red
+        described_cards << "#{value} of #{suit}".send("#{color}")
       end
     else
-      described_cards.push("#{cards[0][0]} of #{cards[0][1]}".black)
-      described_cards.push("Hidden card".black)
+      described_cards.push("#{cards[0][0]} of #{cards[0][1]}".send("#{cards[0][2]}"))
+      described_cards.push("Hidden card".send("black"))
     end
     described_cards
   end
 
-  def display_game_state(show_dealer_card_2)
+  def display_game_state(show_dealer_card_2 = true)
     clear_screen
     width = Game::LINE_WIDTH
     display_hands(width, show_dealer_card_2)
   end
 
   def display_hands(width, show_dealer_card_2)
-    display_player_titles(width)
+    display_player_titles(width - 18)
     display_player_cards(width, show_dealer_card_2)
     puts ""
     puts "*  *  *  *  *  *  *".center(width)
@@ -184,7 +182,7 @@ module Display
   def display_player_cards(width, show_dealer_card_2)
     small_hand_size = find_smallest_hand
     display_equal_number_of_cards(width, small_hand_size, show_dealer_card_2)
-    display_extra_cards(width, small_hand_size)
+    display_extra_cards(width - 9, small_hand_size)
   end
 
   def display_equal_number_of_cards(width, small_hand_size, show_dealer_card_2)
@@ -215,7 +213,7 @@ module Display
   end
 
   def display_result
-    display_game_state(show_dealer_card_2 = true)
+    display_game_state
     puts ""
     if dealer.busted?
       puts "The dealer has busted with #{dealer.total} points so you win!"
@@ -247,14 +245,14 @@ class String
   end
 
   def black
-    "\e[30m#{self}\e[0m"
+    "\e[40m#{self}\e[0m"
   end
 end
 
 class Game
   include Display
   attr_accessor :player, :dealer, :deck
-  LINE_WIDTH = 64
+  LINE_WIDTH = 84
 
   def initialize
     @deck = Deck.new
@@ -264,10 +262,14 @@ class Game
 
   def play
     display_welcome_message
-    deal_cards
-    player_turn
-    dealer_turn
-    display_result
+    loop do
+      deal_cards
+      player_turn
+      dealer_turn
+      display_result
+      break unless play_again?
+      # reset_information
+    end
     display_end_message
   end
 
@@ -280,7 +282,7 @@ class Game
 
   def player_turn
     loop do
-      display_game_state(show_dealer_card_2=false)
+      display_game_state(false)
       break if player.busted? || player.stayed?
       answer = hit_stay_or_total
       case answer
@@ -309,7 +311,7 @@ class Game
   def dealer_turn
     unless player.busted?
       loop do
-        display_game_state(show_dealer_card_2 = true)
+        display_game_state
         if dealer.total < 17 || dealer.total < player.total
           dealer.hit(dealer)
           press_enter_to_continue
@@ -324,6 +326,17 @@ class Game
   def press_enter_to_continue
     puts "Please press enter to continue."
     gets.chomp
+  end
+  
+  def play_again?
+    answer = nil
+    loop do
+      puts "Would you like to play again? (y/n)"
+      answer = gets.chomp.downcase
+      break if %w(y n yes no).include? answer
+      puts "Sorry, must be y or n"
+    end
+    answer
   end
 end
 
