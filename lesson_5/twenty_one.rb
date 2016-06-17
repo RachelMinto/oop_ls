@@ -1,7 +1,7 @@
 
 # frozen_string_literal: true
 
-# To do: Colorize.
+require 'pry'
 
 class Participant
   MAX_ALLOWED_POINTS = 21
@@ -32,18 +32,6 @@ class Participant
     cards = []
     hand.each { |card| cards << [card.value, card.suit] }
     cards
-  end
-
-  def show_cards(show_all_cards=true)
-    described_cards = []
-    cards = cards_in_array
-    if show_all_cards
-      cards.each { |value, suit| described_cards << "#{value} of #{suit}" }
-    else
-      described_cards.push("#{cards[0][0]} of #{cards[0][1]}")
-      described_cards.push("Hidden card")
-    end
-    described_cards
   end
 
   def show_total
@@ -147,10 +135,6 @@ class Card
     @suit = suit
     @value = value
   end
-
-  def red
-    "\e[31m#{self}\e[0m"
-  end
 end
 
 module Display
@@ -160,6 +144,28 @@ module Display
     puts "#{dealer.name} will be your dealer today."
     puts ""
     sleep(2.3)
+  end
+
+  def show_cards(participant, show_all_cards=true)
+    described_cards = []
+    cards = participant.cards_in_array
+    if show_all_cards
+      cards.each do |value, suit| 
+        if suit == "Diamonds" || suit == "Hearts"
+          described_cards << "#{value} of #{suit}".red 
+        else
+          described_cards << "#{value} of #{suit}"
+        end
+      end
+    else
+        if cards[0][1] == "Diamonds" || cards[0][1] == "Hearts"
+          described_cards.push("#{cards[0][0]} of #{cards[0][1]}".red)
+        else
+          described_cards.push("#{cards[0][0]} of #{cards[0][1]}")
+        end
+      described_cards.push("Hidden card")
+    end
+    described_cards
   end
 
   def display_game_state(show_dealer_card_2)
@@ -191,19 +197,20 @@ module Display
   def display_equal_number_of_cards(width, small_hand_size, show_dealer_card_2)
     i = 0
     while i < small_hand_size
-      puts player.show_cards[i].ljust(width / 2) + 
-      dealer.show_cards(show_dealer_card_2)[i].rjust(width / 2)
+      puts show_cards(player)[i].ljust(width / 2) + 
+      show_cards(dealer, show_dealer_card_2)[i].rjust(width / 2)
       i += 1
     end
+    binding.pry
   end
 
   def display_extra_cards(width, small_hand_size)
     player_cards = player.cards_in_array
     dealer_cards = dealer.cards_in_array
     if player_cards.length > small_hand_size
-      puts player.show_cards[small_hand_size..player_cards.length]
+      puts show_cards(player)[small_hand_size..player_cards.length]
     elsif dealer_cards.length > small_hand_size
-      dealer.show_cards[small_hand_size..dealer_cards.length].each do |card|
+      show_cards(dealer)[small_hand_size..dealer_cards.length].each do |card|
         puts card.rjust(width)
       end
     end
@@ -239,6 +246,12 @@ module Display
     puts ""
     puts "Thank you for playing Twenty-One. Goodbye."
     puts ""
+  end
+end
+
+class String
+  def red
+    "\e[31m#{self}\e[0m"
   end
 end
 
