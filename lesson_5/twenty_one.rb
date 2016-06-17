@@ -30,7 +30,7 @@ class Participant
 
   def cards_in_array
     cards = []
-    hand.each { |card| cards << [card.value, card.suit] }
+    hand.each { |card| cards << [card.value, card.suit, card.color] }
     cards
   end
 
@@ -129,11 +129,12 @@ class Deck
 end
 
 class Card
-  attr_reader :suit, :value
+  attr_reader :suit, :value, :color
 
   def initialize(suit, value)
     @suit = suit
     @value = value
+    @color = suit == "Diamonds" || suit == "Hears" ? "red" : "black"
   end
 end
 
@@ -150,20 +151,12 @@ module Display
     described_cards = []
     cards = participant.cards_in_array
     if show_all_cards
-      cards.each do |value, suit| 
-        if suit == "Diamonds" || suit == "Hearts"
-          described_cards << "#{value} of #{suit}".red 
-        else
-          described_cards << "#{value} of #{suit}"
-        end
+      cards.each do |value, suit, color| 
+        described_cards << "#{value} of #{suit}".red
       end
     else
-        if cards[0][1] == "Diamonds" || cards[0][1] == "Hearts"
-          described_cards.push("#{cards[0][0]} of #{cards[0][1]}".red)
-        else
-          described_cards.push("#{cards[0][0]} of #{cards[0][1]}")
-        end
-      described_cards.push("Hidden card")
+      described_cards.push("#{cards[0][0]} of #{cards[0][1]}".black)
+      described_cards.push("Hidden card".black)
     end
     described_cards
   end
@@ -201,7 +194,6 @@ module Display
       show_cards(dealer, show_dealer_card_2)[i].rjust(width / 2)
       i += 1
     end
-    binding.pry
   end
 
   def display_extra_cards(width, small_hand_size)
@@ -252,6 +244,10 @@ end
 class String
   def red
     "\e[31m#{self}\e[0m"
+  end
+
+  def black
+    "\e[30m#{self}\e[0m"
   end
 end
 
