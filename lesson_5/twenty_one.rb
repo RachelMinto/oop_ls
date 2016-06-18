@@ -54,6 +54,16 @@ class Participant
     end
     sum
   end
+
+  def ended_turn?
+    busted? || stayed?
+  end
+
+  def reset
+    @total = 0
+    @hand = []
+    @turn_complete = false
+  end
 end
 
 class Player < Participant
@@ -101,6 +111,16 @@ class Dealer < Participant
     player.hand.push(card)
     card
   end
+
+  def take_turn(player_total)
+    if total < 17 || total < player_total
+      hit(self)
+      puts "Please press enter to continue."
+      gets.chomp
+    else
+      stay
+    end
+  end
 end
 
 class Deck
@@ -121,8 +141,16 @@ class Deck
     @dealt_cards = []
   end
 
-  def to_s
-    "#{cards}"
+  def reset
+    cards = []
+    SUITS.each do |suit|
+      VALUES.each do |value|
+        card = Card.new(suit, value)
+        cards << card
+      end
+    end
+    @cards = cards
+    @dealt_cards = []
   end
 end
 
@@ -145,32 +173,76 @@ module Display
     sleep(2.3)
   end
 
+  def display_game_state(show_dealer_card_2 = true)
+    clear_screen
+    display_hands(Game::LINE_WIDTH, show_dealer_card_2)
+  end
+
+  def display_result
+    player_total = player.total
+    dealer_total = dealer.total
+    display_game_state
+    puts ""
+    puts "Wow! You got 21 points right on. Good job!" if player_total == 21
+    if dealer.busted?
+      puts "The dealer has busted with #{dealer_total} points so you win!"
+    elsif player.busted?
+      puts "You have busted with #{player_total} points so the dealer wins!"
+    else
+      compare_total_points(player_total, dealer_total)
+    end
+  end
+
+  def display_end_message
+    puts ""
+    puts "Thank you for playing Twenty-One. Goodbye."
+    sleep(2.1)
+    clear_screen
+  end
+
+  def display_total
+    puts ""
+    puts "Your cards total to #{player.total} points."
+    puts ""
+  end
+
+  private
+
+  def clear_screen
+    system('clear') || system('cls')
+  end
+
   def show_cards(participant, show_all_cards=true)
     described_cards = []
     cards = participant.cards_in_array
     if show_all_cards
-      cards.each do |value, suit, color| 
-        described_cards << "#{value} of #{suit}".send("#{color}")
+      cards.each do |value, suit, color|
+        described_cards << "#{value} of #{suit}".send(color.to_s)
       end
     else
-      described_cards.push("#{cards[0][0]} of #{cards[0][1]}".send("#{cards[0][2]}"))
+      value = cards[0][0]
+      suit = cards[0][1]
+      color = cards[0][2]
+      described_cards.push("#{value} of #{suit}".send(color.to_s))
       described_cards.push("Hidden card".send("black"))
     end
     described_cards
-  end
-
-  def display_game_state(show_dealer_card_2 = true)
-    clear_screen
-    width = Game::LINE_WIDTH
-    display_hands(width, show_dealer_card_2)
   end
 
   def display_hands(width, show_dealer_card_2)
     display_player_titles(width - 18)
     display_player_cards(width, show_dealer_card_2)
     puts ""
-    puts "*  *  *  *  *  *  *".center(width)
+    puts "*  *  *  *  *  *  *".center(width - 18)
     puts ""
+  end
+
+  def display_player_cards(width, show_dealer_card_2)
+    small_hand_size = find_smallest_hand
+    display_equal_number_of_cards(width, small_hand_size, show_dealer_card_2)
+    player_cards = player.cards_in_array
+    dealer_cards = dealer.cards_in_array
+    display_extra_cards(width - 9, small_hand_size, player_cards, dealer_cards)
   end
 
   def display_player_titles(width)
@@ -179,63 +251,25 @@ module Display
     puts player_title.ljust(width / 2) + dealer_title.rjust(width / 2)
   end
 
-  def display_player_cards(width, show_dealer_card_2)
-    small_hand_size = find_smallest_hand
-    display_equal_number_of_cards(width, small_hand_size, show_dealer_card_2)
-    display_extra_cards(width - 9, small_hand_size)
-  end
-
   def display_equal_number_of_cards(width, small_hand_size, show_dealer_card_2)
     i = 0
     while i < small_hand_size
-      puts show_cards(player)[i].ljust(width / 2) + 
-      show_cards(dealer, show_dealer_card_2)[i].rjust(width / 2)
+      puts show_cards(player)[i].ljust(width / 2) +
+           show_cards(dealer, show_dealer_card_2)[i].rjust(width / 2)
       i += 1
     end
   end
 
-  def display_extra_cards(width, small_hand_size)
-    player_cards = player.cards_in_array
-    dealer_cards = dealer.cards_in_array
-    if player_cards.length > small_hand_size
-      puts show_cards(player)[small_hand_size..player_cards.length]
-    elsif dealer_cards.length > small_hand_size
-      show_cards(dealer)[small_hand_size..dealer_cards.length].each do |card|
+  def display_extra_cards(width, small_hand_size, player_cards, dealer_cards)
+    player_cards_length = player_cards.length
+    dealer_cards_length = dealer_cards.length
+    if player_cards_length > small_hand_size
+      puts show_cards(player)[small_hand_size..player_cards_length]
+    elsif dealer_cards_length > small_hand_size
+      show_cards(dealer)[small_hand_size..dealer_cards_length].each do |card|
         puts card.rjust(width)
       end
     end
-  end
-
-  def find_smallest_hand
-    player_hand_size = player.cards_in_array.length
-    dealer_hand_size = dealer.cards_in_array.length
-    player_hand_size < dealer_hand_size ? player_hand_size : dealer_hand_size
-  end
-
-  def display_result
-    display_game_state
-    puts ""
-    if dealer.busted?
-      puts "The dealer has busted with #{dealer.total} points so you win!"
-    elsif player.busted?
-      puts "You have busted with #{player.total} points so the dealer wins!"
-    else
-      puts "Your total is #{player.total} and the dealer has #{dealer.total}."
-      if player.total > dealer.total then puts "You win!"
-      elsif player.total < dealer.total then puts "#{dealer.name} wins!"
-      else puts "It's a tie!"
-      end
-    end
-  end
-
-  def clear_screen
-    system('clear') || system('cls')
-  end
-
-  def display_end_message
-    puts ""
-    puts "Thank you for playing Twenty-One. Goodbye."
-    puts ""
   end
 end
 
@@ -245,7 +279,7 @@ class String
   end
 
   def black
-    "\e[40m#{self}\e[0m"
+    "\e[30m#{self}\e[0m"
   end
 end
 
@@ -268,10 +302,12 @@ class Game
       dealer_turn
       display_result
       break unless play_again?
-      # reset_information
+      reset_information
     end
     display_end_message
   end
+
+  private
 
   def deal_cards
     dealer.deal(player)
@@ -281,19 +317,27 @@ class Game
   end
 
   def player_turn
+    display_total_score = false
     loop do
       display_game_state(false)
-      break if player.busted? || player.stayed?
+      break if player.ended_turn?
+      if display_total_score
+        display_total
+        display_total_score = false
+      end
       answer = hit_stay_or_total
       case answer
       when /^h/ then dealer.hit(player)
       when /^s/ then player.stay
-      when /^t/ then
-        puts ""
-        puts "Your cards total to #{player.total} points."
-        press_enter_to_continue
+      when /^t/ then display_total_score = true
       end
     end
+  end
+
+  def find_smallest_hand
+    player_hand_size = player.cards_in_array.length
+    dealer_hand_size = dealer.cards_in_array.length
+    player_hand_size < dealer_hand_size ? player_hand_size : dealer_hand_size
   end
 
   def hit_stay_or_total
@@ -312,22 +356,20 @@ class Game
     unless player.busted?
       loop do
         display_game_state
-        if dealer.total < 17 || dealer.total < player.total
-          dealer.hit(dealer)
-          press_enter_to_continue
-        else
-          dealer.stay
-        end
-        break if dealer.busted? || dealer.stayed?
+        dealer.take_turn(player.total)
+        break if dealer.ended_turn?
       end
     end
   end
 
-  def press_enter_to_continue
-    puts "Please press enter to continue."
-    gets.chomp
+  def compare_total_points(player_total, dealer_total)
+    puts "Your total is #{player_total} and the dealer has #{dealer_total}."
+    if player_total > dealer_total then puts "You win!"
+    elsif player_total < dealer_total then puts "#{dealer.name} wins!"
+    else puts "It's a tie!"
+    end
   end
-  
+
   def play_again?
     answer = nil
     loop do
@@ -336,7 +378,13 @@ class Game
       break if %w(y n yes no).include? answer
       puts "Sorry, must be y or n"
     end
-    answer
+    answer.start_with? 'y'
+  end
+
+  def reset_information
+    deck.reset
+    player.reset
+    dealer.reset
   end
 end
 
