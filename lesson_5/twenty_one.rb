@@ -61,7 +61,7 @@ class Participant
 
   def reset
     @total = 0
-    @hand = []
+    self.hand = []
     @turn_complete = false
   end
 end
@@ -76,8 +76,8 @@ class Player < Participant
     name = ''
     puts "Hello, what is your name?"
     loop do
-      name = gets.chomp
-      break unless name.to_s.strip.empty? || name.to_s.length > 17
+      name = gets.chomp.to_s
+      break unless name.strip.empty? || name.length > 17
       puts "Sorry, your name must be between 1 and 17 characters long."
     end
     @name = name
@@ -104,7 +104,7 @@ class Dealer < Participant
   def deal(player)
     card = ''
     loop do
-      card = @deck.cards.sample
+      card = deck.cards.sample
       break unless deck.dealt_cards.include? card
     end
     deck.dealt_cards.push(card)
@@ -130,15 +130,7 @@ class Deck
            ['Jack', 'Queen', 'King', 'Ace']
 
   def initialize
-    cards = []
-    SUITS.each do |suit|
-      VALUES.each do |value|
-        card = Card.new(suit, value)
-        cards << card
-      end
-    end
-    @cards = cards
-    @dealt_cards = []
+    reset
   end
 
   def reset
@@ -149,8 +141,8 @@ class Deck
         cards << card
       end
     end
-    @cards = cards
-    @dealt_cards = []
+    self.cards = cards
+    self.dealt_cards = []
   end
 end
 
@@ -193,17 +185,17 @@ module Display
     end
   end
 
+  def display_total
+    puts ""
+    puts "Your cards total to #{player.total} points."
+    puts ""
+  end
+
   def display_end_message
     puts ""
     puts "Thank you for playing Twenty-One. Goodbye."
     sleep(2.1)
     clear_screen
-  end
-
-  def display_total
-    puts ""
-    puts "Your cards total to #{player.total} points."
-    puts ""
   end
 
   private
@@ -223,7 +215,7 @@ module Display
       value = cards[0][0]
       suit = cards[0][1]
       color = cards[0][2]
-      described_cards.push("#{value} of #{suit}".send(color.to_s))
+      described_cards.push("#{value} of #{suit}".send(color))
       described_cards.push("Hidden card".send("black"))
     end
     described_cards
@@ -289,9 +281,9 @@ class Game
   LINE_WIDTH = 84
 
   def initialize
-    @deck = Deck.new
-    @player = Player.new
-    @dealer = Dealer.new(@deck)
+    self.deck = Deck.new
+    self.player = Player.new
+    self.dealer = Dealer.new(deck)
   end
 
   def play
@@ -310,10 +302,10 @@ class Game
   private
 
   def deal_cards
-    dealer.deal(player)
-    dealer.deal(player)
-    dealer.deal(dealer)
-    dealer.deal(dealer)
+    2.times do
+      dealer.deal(player)
+      dealer.deal(dealer)
+    end
   end
 
   def player_turn
