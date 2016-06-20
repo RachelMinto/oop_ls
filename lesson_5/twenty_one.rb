@@ -1,6 +1,10 @@
 
 # frozen_string_literal: true
 
+require 'colorize'
+
+require 'pry'
+
 class Participant
   MAX_ALLOWED_POINTS = 21
   attr_accessor :hand
@@ -26,12 +30,6 @@ class Participant
     @turn_complete = true
   end
 
-  def cards_in_array
-    cards = []
-    hand.each { |card| cards << [card.value, card.suit, card.color] }
-    cards
-  end
-
   def show_total
     puts "#{name} has a total of #{total} points."
   end
@@ -55,7 +53,7 @@ class Participant
     sum
   end
 
-  def ended_turn?
+  def turn_over?
     busted? || stayed?
   end
 
@@ -152,7 +150,7 @@ class Card
   def initialize(suit, value)
     @suit = suit
     @value = value
-    @color = suit == "Diamonds" || suit == "Hearts" ? "red" : "black"
+    @color = %w(Diamonds Hearts).include?(suit) ? "red" : "black"
   end
 end
 
@@ -206,35 +204,34 @@ module Display
 
   def show_cards(participant, show_all_cards=true)
     described_cards = []
-    cards = participant.cards_in_array
+    cards = participant.hand
     if show_all_cards
-      cards.each do |value, suit, color|
-        described_cards << "#{value} of #{suit}".send(color.to_s)
+      cards.each do |card|
+        color = card.color.to_sym
+        described_cards << "#{card.value} of #{card.suit}".colorize(color)
       end
     else
-      value = cards[0][0]
-      suit = cards[0][1]
-      color = cards[0][2]
-      described_cards.push("#{value} of #{suit}".send(color))
-      described_cards.push("Hidden card".send("black"))
+      color = cards.first.color.to_sym
+      described_cards.push("#{cards.first.value} of #{cards.first.suit}".colorize(color))
+      described_cards.push("Hidden card".colorize(:black))
     end
     described_cards
   end
 
   def display_hands(width, show_dealer_card_2)
-    display_player_titles(width - 18)
+    display_player_titles(width - 28)
     display_player_cards(width, show_dealer_card_2)
     puts ""
-    puts "*  *  *  *  *  *  *".center(width - 18)
+    puts "*  *  *  *  *  *  *".center(width - 28)
     puts ""
   end
 
   def display_player_cards(width, show_dealer_card_2)
     small_hand_size = find_smallest_hand
     display_equal_number_of_cards(width, small_hand_size, show_dealer_card_2)
-    player_cards = player.cards_in_array
-    dealer_cards = dealer.cards_in_array
-    display_extra_cards(width - 9, small_hand_size, player_cards, dealer_cards)
+    player_cards = player.hand
+    dealer_cards = dealer.hand
+    display_extra_cards(width - 14, small_hand_size, player_cards, dealer_cards)
   end
 
   def display_player_titles(width)
@@ -262,16 +259,6 @@ module Display
         puts card.rjust(width)
       end
     end
-  end
-end
-
-class String
-  def red
-    "\e[31m#{self}\e[0m"
-  end
-
-  def black
-    "\e[30m#{self}\e[0m"
   end
 end
 
@@ -312,7 +299,7 @@ class Game
     display_total_score = false
     loop do
       display_game_state(false)
-      break if player.ended_turn?
+      break if player.turn_over?
       if display_total_score
         display_total
         display_total_score = false
@@ -327,8 +314,8 @@ class Game
   end
 
   def find_smallest_hand
-    player_hand_size = player.cards_in_array.length
-    dealer_hand_size = dealer.cards_in_array.length
+    player_hand_size = player.hand.length
+    dealer_hand_size = dealer.hand.length
     player_hand_size < dealer_hand_size ? player_hand_size : dealer_hand_size
   end
 
@@ -349,7 +336,7 @@ class Game
       loop do
         display_game_state
         dealer.take_turn(player.total)
-        break if dealer.ended_turn?
+        break if dealer.turn_over?
       end
     end
   end
