@@ -1,9 +1,7 @@
 
 # frozen_string_literal: true
 
-require 'colorize'
-
-require 'pry'
+# require 'pry'
 
 class Participant
   MAX_ALLOWED_POINTS = 21
@@ -100,12 +98,7 @@ class Dealer < Participant
   end
 
   def deal(player)
-    card = ''
-    loop do
-      card = deck.cards.sample
-      break unless deck.dealt_cards.include? card
-    end
-    deck.dealt_cards.push(card)
+    card = deck.cards.pop
     player.hand.push(card)
     card
   end
@@ -122,7 +115,7 @@ class Dealer < Participant
 end
 
 class Deck
-  attr_accessor :cards, :dealt_cards
+  attr_accessor :cards
   SUITS = ['Hearts', 'Diamonds', 'Spades', 'Clubs'].freeze
   VALUES = ['2', '3', '4', '5', '6', '7', '8', '9', '10'] +
            ['Jack', 'Queen', 'King', 'Ace']
@@ -138,19 +131,18 @@ class Deck
         card = Card.new(suit, value)
         cards << card
       end
+      cards.shuffle!
     end
     self.cards = cards
-    self.dealt_cards = []
   end
 end
 
 class Card
-  attr_reader :suit, :value, :color
+  attr_reader :suit, :value
 
   def initialize(suit, value)
     @suit = suit
     @value = value
-    @color = %w(Diamonds Hearts).include?(suit) ? "red" : "black"
   end
 end
 
@@ -207,22 +199,20 @@ module Display
     cards = participant.hand
     if show_all_cards
       cards.each do |card|
-        color = card.color.to_sym
-        described_cards << "#{card.value} of #{card.suit}".colorize(color)
+        described_cards << "#{card.value} of #{card.suit}"
       end
     else
-      color = cards.first.color.to_sym
-      described_cards.push("#{cards.first.value} of #{cards.first.suit}".colorize(color))
-      described_cards.push("Hidden card".colorize(:black))
+      described_cards.push("#{cards.first.value} of #{cards.first.suit}")
+      described_cards.push("Hidden card")
     end
     described_cards
   end
 
   def display_hands(width, show_dealer_card_2)
-    display_player_titles(width - 28)
+    display_player_titles(width)
     display_player_cards(width, show_dealer_card_2)
     puts ""
-    puts "*  *  *  *  *  *  *".center(width - 28)
+    puts "*  *  *  *  *  *  *".center(width)
     puts ""
   end
 
@@ -231,7 +221,7 @@ module Display
     display_equal_number_of_cards(width, small_hand_size, show_dealer_card_2)
     player_cards = player.hand
     dealer_cards = dealer.hand
-    display_extra_cards(width - 14, small_hand_size, player_cards, dealer_cards)
+    display_extra_cards(width, small_hand_size, player_cards, dealer_cards)
   end
 
   def display_player_titles(width)
@@ -265,7 +255,7 @@ end
 class Game
   include Display
   attr_accessor :player, :dealer, :deck
-  LINE_WIDTH = 84
+  LINE_WIDTH = 64
 
   def initialize
     self.deck = Deck.new
@@ -304,12 +294,8 @@ class Game
         display_total
         display_total_score = false
       end
-      answer = hit_stay_or_total
-      case answer
-      when /^h/ then dealer.hit(player)
-      when /^s/ then player.stay
-      when /^t/ then display_total_score = true
-      end
+      answer = hit_or_stay
+      answer.start_with?('h') ? dealer.hit(player) : player.stay
     end
   end
 
@@ -319,14 +305,14 @@ class Game
     player_hand_size < dealer_hand_size ? player_hand_size : dealer_hand_size
   end
 
-  def hit_stay_or_total
+  def hit_or_stay
     puts ""
     answer = ''
     loop do
-      puts "Would you like to hit, stay or view your current total? (h/s/t)"
+      puts "Would you like to hit or stay? (h/s)"
       answer = gets.chomp.downcase
-      break if %w(hit stay total h s t).include? answer
-      puts "I'm sorry, you must reply with either hit, stay or total."
+      break if %w(hit stay h s).include? answer
+      puts "I'm sorry, you must reply with either hit or stay."
     end
     answer
   end
