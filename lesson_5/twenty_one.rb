@@ -1,8 +1,6 @@
 
 # frozen_string_literal: true
 
-require 'pry'
-
 class Participant
   MAX_ALLOWED_POINTS = 21
   attr_accessor :hand
@@ -121,26 +119,18 @@ class Deck
   end
 
   def reset
-    cards = []
+    self.cards = []
     SUITS.each do |suit|
       VALUES.each do |value|
         card = Card.new(suit, value)
         cards << card
       end
-      cards.shuffle!
     end
-    self.cards = cards
+    cards.shuffle!
   end
 
   def deal_card
     cards.pop
-  end
-
-  def hit(participant)
-    card = deal_card
-    participant.hand.push(card)
-    yield if block_given?
-    puts "#{participant.name} has been dealt the #{card.to_s}."
   end
 end
 
@@ -209,7 +199,12 @@ module TwoColumnDisplay
 
   def display_current_scores
     width = Game::LINE_WIDTH
-    puts player.score.ljust(width / 2) + dealer.score.rjust(width / 2)
+    player_score = player.score
+    if player.turn_over?
+      puts player_score.ljust(width / 2) + dealer.score.rjust(width / 2)
+    else
+      puts player_score
+    end
   end
 end
 
@@ -237,14 +232,6 @@ class Game
     display_end_message
   end
 
-  def display_game_state(show_dealer_card_2 = true)
-    clear_screen
-    display_hands(show_dealer_card_2)
-    puts ""
-    display_current_scores
-    display_line_break
-  end
-
   private
 
   def display_welcome_message
@@ -262,25 +249,28 @@ class Game
     end
   end
 
+  def display_game_state(show_dealer_card_2 = true)
+    clear_screen
+    display_hands(show_dealer_card_2)
+    puts ""
+    display_current_scores
+    display_line_break
+  end
+
   def player_turn
-    display_total_score = false
     loop do
       display_game_state(false)
       break if player.turn_over?
-      if display_total_score
-        display_total
-        display_total_score = false
-      end
-      answer = hit_or_stay
+      answer = player_hit_or_stay
       if answer.start_with?('h')
-        deck.hit(player) {display_game_state(false)}
+        hit(player) { display_game_state(false) }
       else
         player.stay
       end
     end
   end
 
-  def hit_or_stay
+  def player_hit_or_stay
     puts ""
     answer = ''
     loop do
@@ -292,20 +282,36 @@ class Game
     answer
   end
 
+  def hit(participant)
+    card = deck.deal_card
+    participant.hand.push(card)
+    yield if block_given?
+    puts "#{participant.name} has been dealt the #{card}."
+  end
+
   def dealer_turn
     unless player.busted?
       loop do
         display_game_state
-        if dealer.total < 17 || dealer.total < player.total 
-          deck.hit(dealer) {display_game_state}
-          puts "Press enter to continue."
-          gets.chomp
-        else
-          dealer.stay
-        end
+        dealer_hit_or_stay
         break if dealer.turn_over?
       end
     end
+  end
+
+  def dealer_hit_or_stay
+    dealer_total = dealer.total
+    if dealer_total < 17 || dealer_total < player.total
+      hit(dealer) { display_game_state }
+      enter_to_continue
+    else
+      dealer.stay
+    end
+  end
+
+  def enter_to_continue
+    puts "Press enter to continue."
+    gets.chomp
   end
 
   def compare_total_points(player_total, dealer_total)
@@ -320,7 +326,7 @@ class Game
     player_total = player.total
     dealer_total = dealer.total
     display_game_state
-    puts "Wow! You got 21 points right on. Nice" if player_total == 21
+    puts "Wow! You got 21 points right on. Nice." if player_total == 21
     if dealer.busted?
       puts "The dealer has busted with #{dealer_total} points so you win!"
     elsif player.busted?
