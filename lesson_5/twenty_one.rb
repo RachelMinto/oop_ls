@@ -1,7 +1,7 @@
 
 # frozen_string_literal: true
 
-# require 'pry'
+require 'pry'
 
 class Participant
   MAX_ALLOWED_POINTS = 21
@@ -28,8 +28,25 @@ class Participant
     @turn_complete = true
   end
 
-  def show_total
-    puts "#{name} has a total of #{total} points."
+  def title
+    "#{name}'s cards:"
+  end
+
+  def score
+    "#{name}'s total: #{total}"
+  end
+
+  def show_cards(show_all_cards=true)
+    described_cards = []
+    if show_all_cards
+      hand.each do |card|
+        described_cards << card.to_s
+      end
+    else
+      described_cards.push(hand.first.to_s)
+      described_cards.push("Hidden card")
+    end
+    described_cards
   end
 
   def total
@@ -91,27 +108,6 @@ class Dealer < Participant
   def set_name
     @name = ['Jane Austen', 'George Eliot', 'Charles Dickens'].sample
   end
-
-  def hit(participant)
-    card = deal(participant)
-    puts "#{participant.name} has been dealt the #{card.value} of #{card.suit}."
-  end
-
-  def deal(player)
-    card = deck.cards.pop
-    player.hand.push(card)
-    card
-  end
-
-  def take_turn(player_total)
-    if total < 17 || total < player_total
-      hit(self)
-      puts "Please press enter to continue."
-      gets.chomp
-    else
-      stay
-    end
-  end
 end
 
 class Deck
@@ -135,6 +131,17 @@ class Deck
     end
     self.cards = cards
   end
+
+  def deal_card
+    cards.pop
+  end
+
+  def hit(participant)
+    card = deal_card
+    participant.hand.push(card)
+    yield if block_given?
+    puts "#{participant.name} has been dealt the #{card.to_s}."
+  end
 end
 
 class Card
@@ -144,116 +151,70 @@ class Card
     @suit = suit
     @value = value
   end
+
+  def to_s
+    "#{value} of #{suit}"
+  end
 end
 
-module Display
-  def display_welcome_message
-    clear_screen
-    puts "Welcome to Twenty-One, #{player.name}!"
-    puts "#{dealer.name} will be your dealer today."
-    puts ""
-    sleep(2.3)
+module TwoColumnDisplay
+  def display_hands(show_dealer_card_2)
+    display_player_titles
+    display_player_cards(show_dealer_card_2)
   end
 
-  def display_game_state(show_dealer_card_2 = true)
-    clear_screen
-    display_hands(Game::LINE_WIDTH, show_dealer_card_2)
-  end
-
-  def display_result
-    player_total = player.total
-    dealer_total = dealer.total
-    display_game_state
+  def display_line_break
     puts ""
-    puts "Wow! You got 21 points right on. Good job!" if player_total == 21
-    if dealer.busted?
-      puts "The dealer has busted with #{dealer_total} points so you win!"
-    elsif player.busted?
-      puts "You have busted with #{player_total} points so the dealer wins!"
-    else
-      compare_total_points(player_total, dealer_total)
-    end
-  end
-
-  def display_total
-    puts ""
-    puts "Your cards total to #{player.total} points."
+    puts "*  *  *  *  *  *  *".center(Game::LINE_WIDTH)
     puts ""
   end
 
-  def display_end_message
-    puts ""
-    puts "Thank you for playing Twenty-One. Goodbye."
-    sleep(2.1)
-    clear_screen
-  end
-
-  private
-
-  def clear_screen
-    system('clear') || system('cls')
-  end
-
-  def show_cards(participant, show_all_cards=true)
-    described_cards = []
-    cards = participant.hand
-    if show_all_cards
-      cards.each do |card|
-        described_cards << "#{card.value} of #{card.suit}"
-      end
-    else
-      described_cards.push("#{cards.first.value} of #{cards.first.suit}")
-      described_cards.push("Hidden card")
-    end
-    described_cards
-  end
-
-  def display_hands(width, show_dealer_card_2)
-    display_player_titles(width)
-    display_player_cards(width, show_dealer_card_2)
-    puts ""
-    puts "*  *  *  *  *  *  *".center(width)
-    puts ""
-  end
-
-  def display_player_cards(width, show_dealer_card_2)
+  def display_player_cards(show_dealer_card_2)
     small_hand_size = find_smallest_hand
-    display_equal_number_of_cards(width, small_hand_size, show_dealer_card_2)
-    player_cards = player.hand
-    dealer_cards = dealer.hand
-    display_extra_cards(width, small_hand_size, player_cards, dealer_cards)
+    display_equal_number_of_cards(small_hand_size, show_dealer_card_2)
+    display_extra_cards(small_hand_size)
   end
 
-  def display_player_titles(width)
-    dealer_title = "#{dealer.name}'s cards:"
-    player_title = "#{player.name}'s cards:"
-    puts player_title.ljust(width / 2) + dealer_title.rjust(width / 2)
+  def find_smallest_hand
+    player_hand_size = player.hand.length
+    dealer_hand_size = dealer.hand.length
+    player_hand_size < dealer_hand_size ? player_hand_size : dealer_hand_size
   end
 
-  def display_equal_number_of_cards(width, small_hand_size, show_dealer_card_2)
+  def display_player_titles
+    width = Game::LINE_WIDTH
+    puts player.title.ljust(width / 2) + dealer.title.rjust(width / 2)
+  end
+
+  def display_equal_number_of_cards(small_hand_size, show_dealer_card_2)
     i = 0
     while i < small_hand_size
-      puts show_cards(player)[i].ljust(width / 2) +
-           show_cards(dealer, show_dealer_card_2)[i].rjust(width / 2)
+      puts player.show_cards[i].ljust(Game::LINE_WIDTH / 2) +
+           dealer.show_cards(show_dealer_card_2)[i].rjust(Game::LINE_WIDTH / 2)
       i += 1
     end
   end
 
-  def display_extra_cards(width, small_hand_size, player_cards, dealer_cards)
-    player_cards_length = player_cards.length
-    dealer_cards_length = dealer_cards.length
+  def display_extra_cards(small_hand_size)
+    player_cards_length = player.hand.length
+    dealer_cards_length = dealer.hand.length
     if player_cards_length > small_hand_size
-      puts show_cards(player)[small_hand_size..player_cards_length]
-    elsif dealer_cards_length > small_hand_size
-      show_cards(dealer)[small_hand_size..dealer_cards_length].each do |card|
-        puts card.rjust(width)
+      puts player.show_cards[small_hand_size..player_cards_length]
+    else
+      dealer.show_cards[small_hand_size..dealer_cards_length].each do |card|
+        puts card.rjust(Game::LINE_WIDTH)
       end
     end
+  end
+
+  def display_current_scores
+    width = Game::LINE_WIDTH
+    puts player.score.ljust(width / 2) + dealer.score.rjust(width / 2)
   end
 end
 
 class Game
-  include Display
+  include TwoColumnDisplay
   attr_accessor :player, :dealer, :deck
   LINE_WIDTH = 64
 
@@ -276,12 +237,28 @@ class Game
     display_end_message
   end
 
+  def display_game_state(show_dealer_card_2 = true)
+    clear_screen
+    display_hands(show_dealer_card_2)
+    puts ""
+    display_current_scores
+    display_line_break
+  end
+
   private
+
+  def display_welcome_message
+    clear_screen
+    puts "Welcome to Twenty-One, #{player.name}!"
+    puts "#{dealer.name} will be your dealer today."
+    puts ""
+    sleep(2.3)
+  end
 
   def deal_cards
     2.times do
-      dealer.deal(player)
-      dealer.deal(dealer)
+      player.hand.push(deck.deal_card)
+      dealer.hand.push(deck.deal_card)
     end
   end
 
@@ -295,14 +272,12 @@ class Game
         display_total_score = false
       end
       answer = hit_or_stay
-      answer.start_with?('h') ? dealer.hit(player) : player.stay
+      if answer.start_with?('h')
+        deck.hit(player) {display_game_state(false)}
+      else
+        player.stay
+      end
     end
-  end
-
-  def find_smallest_hand
-    player_hand_size = player.hand.length
-    dealer_hand_size = dealer.hand.length
-    player_hand_size < dealer_hand_size ? player_hand_size : dealer_hand_size
   end
 
   def hit_or_stay
@@ -321,7 +296,13 @@ class Game
     unless player.busted?
       loop do
         display_game_state
-        dealer.take_turn(player.total)
+        if dealer.total < 17 || dealer.total < player.total 
+          deck.hit(dealer) {display_game_state}
+          puts "Press enter to continue."
+          gets.chomp
+        else
+          dealer.stay
+        end
         break if dealer.turn_over?
       end
     end
@@ -332,6 +313,20 @@ class Game
     if player_total > dealer_total then puts "You win!"
     elsif player_total < dealer_total then puts "#{dealer.name} wins!"
     else puts "It's a tie!"
+    end
+  end
+
+  def display_result
+    player_total = player.total
+    dealer_total = dealer.total
+    display_game_state
+    puts "Wow! You got 21 points right on. Nice" if player_total == 21
+    if dealer.busted?
+      puts "The dealer has busted with #{dealer_total} points so you win!"
+    elsif player.busted?
+      puts "You have busted with #{player_total} points so the dealer wins!"
+    else
+      compare_total_points(player_total, dealer_total)
     end
   end
 
@@ -350,6 +345,17 @@ class Game
     deck.reset
     player.reset
     dealer.reset
+  end
+
+  def display_end_message
+    puts ""
+    puts "Thank you for playing Twenty-One. Goodbye."
+    sleep(2.1)
+    clear_screen
+  end
+
+  def clear_screen
+    system('clear') || system('cls')
   end
 end
 
